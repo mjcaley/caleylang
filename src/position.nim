@@ -1,11 +1,10 @@
 type Position* = object
-    line: int32
-    column: int32
+    line: Natural
+    column: Natural
 
 
 proc initPosition*() : Position =
     Position()
 
-
-proc initPosition*(line, column: int32) : Position =
+proc initPosition*(line, column: Natural) : Position =
     Position(line: line, column: column)
