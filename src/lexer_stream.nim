@@ -40,6 +40,7 @@ proc advance(self: var LexerStream) : Option[Character] =
     self.nextLine
   else:
     result = none(Character)
+    self.stream.close()
 
 proc initLexerStream(s: Stream) : LexerStream =
   result = LexerStream(stream: s, buffer: newSeq[Rune](), nextPosition: initPosition(0, 0))
