@@ -1,10 +1,16 @@
 type Position* = object
-    line: Natural
-    column: Natural
+    l: Natural
+    c: Natural
 
 
 proc initPosition*() : Position =
-    Position()
+  Position(l: 1, c: 1)
 
 proc initPosition*(line, column: Natural) : Position =
-    Position(line: line, column: column)
+  Position(l: line, c: column)
+
+proc line*(self: Position) : Natural =
+  self.l
+
+proc column*(self: Position) : Natural =
+  self.c
