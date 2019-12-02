@@ -6,6 +6,7 @@ description   = "Lang compiler and interpreter"
 license       = "MIT"
 srcDir        = "src"
 bin           = @["lang"]
+binDir        = "bin"
 
 backend       = "cpp"
 
