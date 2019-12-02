@@ -70,15 +70,15 @@ type
 
   Token* = object
     kind*: TokenType
-    pos*: Position
+    position*: Position
     value*: string
 
 
-proc initToken*(kind: TokenType, pos: Position, value: string) : Token =
-  Token(kind: kind, pos: pos, value: value)
+proc initToken*(kind: TokenType, position: Position, value: string) : Token =
+  Token(kind: kind, position: position, value: value)
 
-proc initToken*(kind: TokenType, pos: Position) : Token =
-  initToken(kind, pos, "")
+proc initToken*(kind: TokenType, position: Position) : Token =
+  initToken(kind, position, "")
 
 proc initToken*(kind: TokenType, line, column: int32, value: string) : Token =
   initToken(kind, initPosition(line, column), value)
