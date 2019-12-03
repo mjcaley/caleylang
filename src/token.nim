@@ -66,7 +66,8 @@ type
     LeftSquare,
     RightSquare,
 
-    Error
+    Error,
+    EndOfFile
 
   Token* = object
     kind*: TokenType
@@ -85,3 +86,6 @@ proc initToken*(kind: TokenType, line, column: int32, value: string) : Token =
 
 proc initToken*(kind: TokenType, line, column: int32) : Token =
   initToken(kind, line, column, "")
+
+proc initToken*(kind: TokenType) : Token =
+  initToken(kind, 0, 0)
