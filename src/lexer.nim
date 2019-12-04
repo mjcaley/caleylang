@@ -1,4 +1,4 @@
-import context, lexer_stream, options, stack, token, unicode, utility
+import context, lexer_stream, options, position, stack, token, unicode, utility
 
 type
   State* {.pure.} = enum
@@ -84,6 +84,13 @@ proc skip[T](self: var Lexer, character: T) =
 proc skipWhitespace(self: var Lexer) =
   self.skip(WhitespaceChars)
 
+proc eof(self: Lexer) : bool =
+  self.context.currentCharacter.isNone and self.context.nextCharacter.isNone
+
+proc consume(self: var Lexer) : string =
+  result = self.lexeme
+  self.lexeme = ""
+
 # State procs
 proc transition(self: var Lexer, state: State) =
   self.state = state
@@ -102,7 +109,40 @@ proc isEOFState(self: var Lexer) : Option[Token] =
     transition self, State.Indent
 
 proc indentState(self: var Lexer) : Option[Token] =
-  discard
+  let position = self.context.currentPosition.get(initPosition())
+
+  if position.column != 1:
+    skipWhitespace self
+    transition self, State.Operator
+    return
+
+  var width = 0
+  while not eof(self):
+    self.appendWhile(WhitespaceChars)
+    width = self.lexeme.len
+    if self.matchAny(NewlineChars):
+      discard self.consume()
+      discard self.context.advance()
+    else:
+      break
+
+  if eof(self):
+    transition self, State.Dedent
+    return
+
+  if not self.context.brackets.empty:
+    transition self, State.Operator
+    return
+  
+  if width > self.context.indents.top:
+    self.context.indents.push width
+    transition self, State.IsEOF
+    return some initToken(Indent, position)
+  elif width == self.context.indents.top:
+    transition self, State.Operator
+  else:
+    transition self, State.Dedent
+    return
 
 proc dedentState(self: var Lexer) : Option[Token] =
   if self.context.indents.empty:
@@ -147,4 +187,3 @@ proc emit*(self: var Lexer) : Token =
   returnIfSome self, State.String, stringState
   returnIfSome self, State.Word, wordState
   returnIfSome self, State.End, endState
-  
