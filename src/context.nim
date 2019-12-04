@@ -1,12 +1,14 @@
-import lexer_stream, options, position, unicode
+import lexer_stream, options, position, stack, unicode
 
 type
   Context* = object
     stream: LexerStream
-    indents: seq[Natural]
-    brackets: seq[Rune]
+    indents*: Stack[Natural]
+    brackets*: Stack[Rune]
     current: Option[Character]
     next: Option[Character]
+
+  EmptyStackError* = object of Exception
 
 proc initContext*(stream: LexerStream) : Context =
   Context(
@@ -26,19 +28,31 @@ proc pushIndent*(self: var Context, indent: Natural) =
   self.indents.add(indent)
 
 proc popIndent*(self: var Context) : Natural =
-  self.indents.pop()
+  try:
+    self.indents.pop()
+  except IndexError:
+    raise newException(EmptyStackError, "Stack is empty")
 
 proc lastIndent*(self: Context) : Natural =
-  self.indents[self.indents.high]
+  try:
+    self.indents[self.indents.high]
+  except IndexError:
+    raise newException(EmptyStackError, "Stack is empty")
 
 proc pushBracket*(self: var Context, bracket: Rune) =
   self.brackets.add(bracket)
 
 proc popBracket*(self: var Context) : Rune =
-  self.brackets.pop()
+  try: 
+    self.brackets.pop()
+  except IndexError:
+    raise newException(EmptyStackError, "Stack is empty")
 
 proc lastBracket*(self: Context) : Rune =
-  self.brackets[self.brackets.high]
+  try:
+    self.brackets[self.brackets.high]
+  except IndexError:
+    raise newException(EmptyStackError, "Stack is empty")
 
 proc currentCharacter*(self: Context) : Option[Rune] =
   if self.current.isSome:
