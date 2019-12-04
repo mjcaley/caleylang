@@ -1,7 +1,7 @@
-import context, lexer_stream, options, token, unicode, utility
+import context, lexer_stream, options, stack, token, unicode, utility
 
 type
-  State* = enum
+  State* {.pure.} = enum
     Start,
     IsEOF,
     Indent,
@@ -35,11 +35,11 @@ const ReservedChars = @["!".toRune, "=".toRune, "<".toRune, ">".toRune, ".".toRu
 
 proc initLexerFromString*(str: string) : Lexer =
   var stream = initLexerStreamString(str)
-  Lexer(context: initContext(stream), state: Start)
+  Lexer(context: initContext(stream), state: State.Start)
 
 proc initLexerFromFile*(filename: string) : Lexer =
   var stream = initLexerStreamFile(filename)
-  Lexer(context: initContext(stream), state: Start)
+  Lexer(context: initContext(stream), state: State.Start)
 
 # Utility procs
 proc match(self: Lexer, character: Rune) : bool =
@@ -91,21 +91,28 @@ proc transition(self: var Lexer, state: State) =
 proc startState(self: var Lexer) : Option[Token] =
   discard self.context.advance()
   discard self.context.advance()
-  self.context.pushIndent(0)
-  transition self, IsEOF
-  result = some(initToken(TokenType.Indent))
+  self.context.indents.push(0)
+  transition self, State.IsEOF
+  result = some(initToken(Indent))
 
 proc isEOFState(self: var Lexer) : Option[Token] =
   if self.context.currentCharacter.isNone and self.context.nextCharacter.isNone:
-    transition self, Dedent
+    transition self, State.Dedent
   else:
-    transition self, Indent
+    transition self, State.Indent
 
 proc indentState(self: var Lexer) : Option[Token] =
   discard
 
 proc dedentState(self: var Lexer) : Option[Token] =
-  discard
+  if self.context.indents.empty:
+    transition self, State.End
+  else:
+    let targetDedent = self.lexeme.len
+    if self.context.indents.top >= targetDedent:
+      discard self.context.indents.pop()
+      transition self, State.IsEOF
+      result = some initToken(Dedent)
 
 proc operatorState(self: var Lexer) : Option[Token] =
   discard
@@ -122,28 +129,22 @@ proc wordState(self: var Lexer) : Option[Token] =
 proc endState(self: var Lexer) : Option[Token] =
   return some(initToken(EndOfFile))
 
-template returnIfSome(function: untyped) =
-  let value = function()
-  if value.isSome:
-    result = value.get()
+template returnIfSome(lexer: var Lexer, s: State, call: proc(l: var Lexer) : Option[Token]) =
+  if lexer.state == s:
+    let value = call(lexer)
+    if value.isSome:
+      return value.get()
 
 proc emit*(self: var Lexer) : Token =
-  case self.state:
-    of Start:
-      returnIfSome(self.startState)
-    of IsEOF:
-      returnIfSome(self.isEOFState)
-    of Indent:
-      returnIfSome(self.indentState)
-    of Dedent:
-      returnIfSome(self.dedentState)
-    of Operator:
-      returnIfSome(self.operatorState)
-    of Number:
-      returnIfSome(self.numberState)
-    of String:
-      returnIfSome(self.stringState)
-    of Word:
-      returnIfSome(self.wordState)
-    of End:
-      returnIfSome(self.endState)
+  result = initToken(Error)
+
+  returnIfSome self, State.Start, startState
+  returnIfSome self, State.IsEOF, isEOFState
+  returnIfSome self, State.Indent, indentState
+  returnIfSome self, State.Dedent, dedentState
+  returnIfSome self, State.Operator, operatorState
+  returnIfSome self, State.Number, numberState
+  returnIfSome self, State.String, stringState
+  returnIfSome self, State.Word, wordState
+  returnIfSome self, State.End, endState
+  
