@@ -1,4 +1,6 @@
-import options, position, streams, unicode
+import options, streams, unicode
+import ../position
+export position.Position
 
 type
   LexerStream* = object
@@ -30,7 +32,7 @@ proc nextLine(self: var LexerStream) =
 
 const newline = "\n".runeAt(0)
 
-proc advance(self: var LexerStream) : Option[Character] =
+proc advance(self: var LexerStream) : Option[tuple[position: Position, character: Rune]] =
   if not self.endOfBuffer:
     let character = self.buffer[self.bufferIndex]
     result = some((self.nextPosition, character))
@@ -52,5 +54,5 @@ proc initLexerStreamString*(str: string) : LexerStream =
 proc initLexerStreamFile*(filename: string) : LexerStream =
   initLexerStream(openFileStream(filename, fmRead))
 
-proc next*(self: var LexerStream) : Option[Character] =
+proc next*(self: var LexerStream) : Option[tuple[position: Position, character: Rune]] =
   self.advance

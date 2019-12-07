@@ -11,7 +11,7 @@ proc byRune(s: Stream): iterator(): string =
       for character in line.utf8:
         yield character
 
-when isMainModule:
+proc main() =
   echo("Hello, World!")
   let tok = initToken(Indent, 1, 1)
 
@@ -21,3 +21,9 @@ when isMainModule:
   for i in 1..5:
     let next = iter()
     echo next
+
+when isMainModule:
+  
+  let something = 42
+  echo something
+  main()

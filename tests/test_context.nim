@@ -1,19 +1,28 @@
-import context, lexer_stream, options, position, unicode, unittest, utility
+import unittest
+import lexer/private/[context, lexer_stream], lexer/position
+
 
 suite "Context tests":
   setup:
     var stream = initLexerStreamString("Test")
     var ctx = initContext(stream)
 
-  test "Advance returns character":
-    discard ctx.advance()
-    discard ctx.advance()
+  test "Default values":
+    check:
+      ctx.currentCharacter == ""
+      ctx.currentPosition == initPosition(line=1, column=0)
+
+  test "Advance returns previous character":
+    let none1 = ctx.advance()
+    let none2 = ctx.advance()
     let result = ctx.advance()
 
     check:
-      result.isSome == true
-      result.get().position == ctx.currentPosition.get()
-      result.get().character == ctx.currentCharacter.get()
+      none1 == ""
+      none2 == ""
+      result == "T"
+      ctx.currentCharacter == "e"
+      ctx.currentPosition == initPosition(line=1, column=2)
 
   test "Indent is pushed":
     let test_input = 4
@@ -30,14 +39,14 @@ suite "Context tests":
     check result == test_input
 
   test "Bracket is pushed":
-    let test_input = "(".toRune
+    let test_input = "("
     ctx.pushBracket(test_input)
 
     check ctx.lastBracket == test_input
 
   test "Bracket is popped":
-    let test_input = ")".toRune
-    ctx.pushBracket("(".toRune)
+    let test_input = ")"
+    ctx.pushBracket("(")
     ctx.pushBracket(test_input)
     let result = ctx.popBracket()
 

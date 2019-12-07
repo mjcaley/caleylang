@@ -1,4 +1,6 @@
-import options, position, lexer_stream, unicode, unittest
+import options, unittest
+import lexer/private/lexer_stream
+
 
 test "First character from string":
   var stream = initLexerStreamString("Test")
@@ -51,3 +53,14 @@ test "Newline increases the line position":
   check:
     pack.position.line == 2
     pack.position.column == 1
+
+test "Advances through string":
+  let test_input = "Test"
+  var stream = initLexerStreamString(test_input)
+  let default = (position: initPosition(), character: "\0")
+
+  check:
+    "T" == stream.next().get(default).character
+    "e" == stream.next().get(default).character
+    "s" == stream.next().get(default).character
+    "t" == stream.next().get(default).character

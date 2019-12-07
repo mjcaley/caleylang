@@ -1,41 +1,65 @@
-import lexer, token, unittest
+import unittest
+import lexer/lexer
+
 
 test "Default Start state":
   var l = initLexerFromString("")
 
   check l.state == State.Start
 
-test "Initial Indent token":
-  var l = initLexerFromString("")
-  let result = l.emit()
+# test "All Dedents are popped":
+#   var l = initLexerFromString("    +\n        +\n")
+#   echo "State:", l.state, " Token: ", l.emit().kind
+#   echo "State:", l.state, " Token: ", l.emit().kind
+#   echo "State:", l.state, " Token: ", l.emit().kind
+#   echo "State:", l.state, " Token: ", l.emit().kind
+#   echo "State:", l.state, " Token: ", l.emit().kind
+#   echo "State:", l.state, " Token: ", l.emit().kind
+#   # discard l.emit()
+#   # discard l.emit()
+#   # discard l.emit()
+#   # discard l.emit()
+#   # discard l.emit()
+#   # discard l.emit()
+#   # discard l.emit()
 
-  check result.kind == Indent
+#   check:
+#     l.emit().kind == Dedent
+#     l.emit().kind == Dedent
+#     l.emit().kind == EndOfFile
 
-test "Closing Dedent token":
-  var l = initLexerFromString("")
-  discard l.emit()
-  let result = l.emit()
+# test "EndOfFile token on end state":
+#   var l = initLexerFromString("")
+#   let result = l.emit()
 
-  check result.kind == Dedent
+#   check result.kind == EndOfFile
 
-test "EndOfFile token on end state":
-  var l = initLexerFromString("")
-  discard l.emit()
-  discard l.emit()
-  let result = l.emit()
+# test "Indent on whitespace":
+#   var l = initLexerFromString("    42")
+#   let result = l.emit()
 
-  check result.kind == EndOfFile
+#   check result.kind == Indent
 
-test "Ident on whitespace":
-  var l = initLexerFromString("    42")
-  discard l.emit()
-  let result = l.emit()
+# test "Don't return Indent on blank line":
+#   var l = initLexerFromString("    \n42")
+#   let result = l.emit()
 
-  check result.kind == Indent
+#   check result.kind != Indent
 
-test "Don't return Indnet on blank line":
-  var l = initLexerFromString("    \n42")
-  discard l.emit()
-  let result = l.emit()
+# test "Return integer":
+#   let test_input = "42"
+#   var l = initLexerFromString(test_input)
+#   let result = l.emit()
 
-  check result.kind != Indent
+#   check:
+#     result.kind == Integer
+#     result.value == test_input
+
+# test "Count":
+#   let test_input = "+++++"
+#   var l = initLexerFromString(test_input)
+#   echo l.emit()
+#   echo l.emit()
+#   echo l.emit()
+#   echo l.emit()
+#   echo l.emit()
