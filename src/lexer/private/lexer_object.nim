@@ -14,8 +14,8 @@ type
   
     Lexer* = object
       state: State
-      context: Context
-      lexeme: string
+      context*: Context
+      lexeme*: string
 
 
 proc initLexerFromString*(str: string) : Lexer =
@@ -26,16 +26,7 @@ proc initLexerFromFile*(filename: string) : Lexer =
   var stream = initLexerStreamFile(filename)
   Lexer(context: initContext(stream), state: State.Start)      
 
-proc context*(self: var Lexer) : Context =
-  self.context
-
-proc lexeme*(self: var Lexer) : string =
-  self.lexeme
-
-proc `lexeme=`*(self: var Lexer, value: string) =
-  self.lexeme = value
-
-proc state*(self: var Lexer) : State =
+proc state*(self: Lexer) : State =
   self.state
 
 proc `state=`*(self: var Lexer, value: State) =

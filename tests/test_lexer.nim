@@ -1,5 +1,6 @@
 import unittest
 import lexer/lexer
+from lexer/private/lexer_object import state, State
 
 
 test "Default Start state":

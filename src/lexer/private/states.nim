@@ -1,5 +1,6 @@
 import options
-import lexer_object, context, utility, ../../utility/stack, ../token
+import ../position, ../token, ../../utility/stack
+import lexer_object, constants, context, utility
 
 
 proc transition*(self: var Lexer, state: State) =
