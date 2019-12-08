@@ -15,7 +15,7 @@ type
     Lexer* = object
       state: State
       context*: Context
-      lexeme*: string
+      lexeme: string
 
 
 proc initLexerFromString*(str: string) : Lexer =
@@ -31,3 +31,9 @@ proc state*(self: Lexer) : State =
 
 proc `state=`*(self: var Lexer, value: State) =
   self.state = value
+
+proc lexeme*(self: Lexer) : string =
+  self.lexeme
+
+proc `lexeme=`*(self: var Lexer, value: string) =
+  self.lexeme = value
