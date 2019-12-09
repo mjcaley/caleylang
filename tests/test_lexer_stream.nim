@@ -16,7 +16,6 @@ test "First character from string":
 test "None is returned from empty string":
   var stream = initLexerStreamString("")
   let result = stream.next()
-  echo result
 
   check(result.isNone == true)
 
@@ -64,3 +63,14 @@ test "Advances through string":
     "e".runeAt(0) == stream.next().get(default).character
     "s".runeAt(0) == stream.next().get(default).character
     "t".runeAt(0) == stream.next().get(default).character
+
+test "Position increments on line":
+  let test_input = "Test"
+  var stream = initLexerStreamString(test_input)
+  let default = (position: initPosition(), character: "\0".runeAt(0))
+
+  check:
+    initPosition(line=1, column=1) == stream.next().get(default).position
+    initPosition(line=1, column=2) == stream.next().get(default).position
+    initPosition(line=1, column=3) == stream.next().get(default).position
+    initPosition(line=1, column=4) == stream.next().get(default).position
