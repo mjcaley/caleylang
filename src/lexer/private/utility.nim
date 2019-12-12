@@ -1,4 +1,5 @@
 import lexer_object, context, constants
+export lexer_object.Lexer
 
 
 proc current*(self: Lexer) : string =
@@ -21,22 +22,23 @@ proc matchNext*(self: Lexer, character: string) : bool =
 proc lexemeWhile*[T](self: var Lexer, characters: openArray[T]) : string =
   while self.matchAny(characters):
     result.add(self.context.advance())
+  self.lexeme = result
 
 proc appendWhile*[T](self: var Lexer, characters: openArray[T]) : string =
   while self.matchAny(characters):
     result.add(self.context.advance())
 
-proc appendWhileNot*[T](self: var Lexer, characters: openArray[T]) :string =
+proc appendWhileNot*[T](self: var Lexer, characters: openArray[T]) : string =
   while not self.matchAny(characters):
-    self.lexeme.add(self.current)
+    result.add(self.current)
     discard self.context.advance()
 
 proc skip*[T](self: var Lexer, character: T) =
   when T is seq or T is array:
-    if self.matchAny(character):
+    while self.matchAny(character):
       discard self.context.advance()
   else:
-    if self.match(character):
+    while self.match(character):
       discard self.context.advance()
 
 proc skipWhitespace*(self: var Lexer) =
