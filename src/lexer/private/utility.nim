@@ -2,21 +2,21 @@ import lexer_object, context, constants
 export lexer_object.Lexer
 
 
-proc current*(self: Lexer) : string =
+proc current*(self: var Lexer) : string =
   result = self.context.currentCharacter
   
-proc next*(self: Lexer) : string =
+proc next*(self: var Lexer) : string =
   result = self.context.nextCharacter
 
-proc match*(self: Lexer, character: string) : bool =
+proc match*(self: var Lexer, character: string) : bool =
   result = self.current == character
 
-proc matchAny*(self: Lexer, characters: openArray[string]) : bool =
+proc matchAny*(self: var Lexer, characters: openArray[string]) : bool =
   for character in characters:
     if self.match(character):
       return true
 
-proc matchNext*(self: Lexer, character: string) : bool =
+proc matchNext*(self: var Lexer, character: string) : bool =
   result = self.next == character
 
 proc lexemeWhile*[T](self: var Lexer, characters: openArray[T]) : string =
@@ -44,7 +44,7 @@ proc skip*[T](self: var Lexer, character: T) =
 proc skipWhitespace*(self: var Lexer) =
   self.skip(WhitespaceChars)
 
-proc eof*(self: Lexer) : bool =
+proc eof*(self: var Lexer) : bool =
   self.current == "" and self.next == ""
 
 proc consume*(self: var Lexer) : string =

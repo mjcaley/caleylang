@@ -32,6 +32,9 @@ proc state*(self: Lexer) : State =
 proc `state=`*(self: var Lexer, value: State) =
   self.state = value
 
+proc context*(self: var Lexer) : var Context =
+  self.context
+
 proc lexeme*(self: Lexer) : string =
   self.lexeme
 
