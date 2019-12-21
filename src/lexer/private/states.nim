@@ -23,7 +23,6 @@ proc isEOFState*(self: var Lexer) : Option[Token] =
 proc indentState(self: var Lexer) : Option[Token] =
   debugEcho "[Indent] Enter"
   let position = self.context.currentPosition
-  # echo "indent position ", position
 
   if position.column != 1:
     skipWhitespace self
@@ -32,7 +31,8 @@ proc indentState(self: var Lexer) : Option[Token] =
 
   var width = 0
   while not eof(self):
-    let indentLexeme = self.appendWhile(WhitespaceChars)
+    discard self.consume()
+    let indentLexeme = self.lexemeWhile(WhitespaceChars)
     width = indentLexeme.len
     if self.matchAny(NewlineChars):
       discard self.context.advance()
@@ -60,23 +60,36 @@ debugEcho "[Indent] Exit"
 
 proc dedentState(self: var Lexer) : Option[Token] =
   debugEcho "[Dedent] Enter"
-  if self.context.indents.empty:
-    transition self, End
-    return none Token
-
+  debugEcho "Lexeme is: '", self.lexeme, "'"
+  
   let target = self.lexeme.len
-  if target < self.context.indents.top:
-    discard self.context.indents.pop
-    transition self, State.IsEOF
-    result = some initToken(Dedent)
-  elif target == self.context.indents.top and not self.eof:
-    transition self, State.Operator
-  elif target == self.context.indents.top and self.eof:
-    discard self.context.indents.pop
+  let position = initPosition(
+    line=self.context.currentPosition.line,
+    column=self.context.currentPosition.column - target
+  )
+
+  if self.context.indents.empty:
     transition self, State.End
-    result = some initToken(Dedent)
-  else:
-    transition self, End
+    discard self.consume()
+  elif self.eof:
+    if target == self.context.indents.top and self.eof:
+      discard self.context.indents.pop
+      transition self, State.End
+      result = some initToken(Dedent, position)
+      discard self.consume()
+    else:
+      transition self, State.End
+      discard self.consume()
+  elif not self.eof:
+    if target < self.context.indents.top:
+      discard self.context.indents.pop
+      transition self, State.IsEOF
+      result = some initToken(Dedent, position)
+    elif target == self.context.indents.top:
+      transition self, State.Operator
+    else:
+      transition self, State.End
+      discard self.consume()
 
   debugEcho "[Dedent] Exit"
 

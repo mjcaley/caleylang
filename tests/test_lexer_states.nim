@@ -1,5 +1,5 @@
 import unittest
-import lexer/private/[context, states, lexer_object]
+import lexer/private/[context, states, lexer_object], utility/stack
 
 
 test "Lexer begins in State.Start":
@@ -79,3 +79,29 @@ test "Indent transitions to Operator state when not at beginning of line":
     token.kind == Plus
     token.position.line == 1
     token.position.column == 5
+
+test "Dedent emitted when indentation goes down":
+  var l = initLexerFromString("    +")
+  discard l.emit()
+  l.context.indents.push(8)
+  let token = l.emit()
+
+  check:
+    token.kind == Dedent
+    token.position.line == 1
+    token.position.column == 1
+
+test "All Dedent tokens emitted at end of file":
+  var l = initLexerFromString("    +\n")
+  discard l.emit()  # Indent
+  discard l.emit()  # Indent
+  discard l.emit()  # Plus
+  discard l.emit()  # Newline
+  let dedentTok1 = l.emit()
+  let dedentTok2 = l.emit()
+  let eofTok = l.emit()
+
+  check:
+    dedentTok1.kind == Dedent
+    dedentTok2.kind == Dedent
+    eofTok.kind == EndOfFile
