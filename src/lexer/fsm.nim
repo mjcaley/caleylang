@@ -161,6 +161,13 @@ behavior(lexerMachine):
 
 behavior(lexerMachine):
   ini: Branch
+  fin: Strings
+  event: IsString
+  transition:
+    discard
+
+behavior(lexerMachine):
+  ini: Branch
   fin: Number
   event: IsDigit
   transition:
@@ -355,16 +362,64 @@ behavior(lexerMachine):
   transition:
     let pos = context.currentPosition
     var string_value: string
+    discard context.advance
+
     while not context.eof():
-      let character = context.currentCharacter
-      case character:
+      case context.currentCharacter:
         of "\"":
           tokens.add(initToken(String, pos, string_value))
           discard context.advance()
           break
         of "\\":
-          
-          tokens.add(initToken(Error, pos, "Invalid escape character"))
+          case context.nextCharacter:
+            of "0":
+              string_value &= "\0"
+              discard context.advance
+              discard context.advance
+            of "a":
+              string_value &= "\a"
+              discard context.advance
+              discard context.advance
+            of "b":
+              string_value &= "\b"
+              discard context.advance
+              discard context.advance
+            of "f":
+              string_value &= "\f"
+              discard context.advance
+              discard context.advance
+            of "n":
+              string_value &= "\n"
+              discard context.advance
+              discard context.advance
+            of "r":
+              string_value &= "\r"
+              discard context.advance
+              discard context.advance
+            of "t":
+              string_value &= "\t"
+              discard context.advance
+              discard context.advance
+            of "v":
+              string_value &= "\v"
+              discard context.advance
+              discard context.advance
+            of "\\":
+              string_value &= "\\"
+              discard context.advance
+              discard context.advance
+            of "\"":
+              string_value &= "\""
+              discard context.advance
+              discard context.advance
+            else:
+              tokens.add(initToken(Error, pos, "Invalid escape character"))
+              break
+        of "\n":
+          tokens.add(initToken(Error, pos, "Newline in middle of string"))
+          break
+        else:
+          string_value &= context.advance
 
 behavior(lexerMachine):
   ini: Dedents
@@ -404,6 +459,6 @@ proc lexString*(str: string) : seq[Token] =
 
 
 when isMainModule:
-  let tokens = lexString("4.2\n123\n0x456\n0b0101\n0o2632    +++if else identifier")
+  let tokens = lexString("\"this is a string\"\n4.2\n123\n0x456\n0b0101\n0o2632    +++if else identifier")
   for tok in tokens:
     echo tok
