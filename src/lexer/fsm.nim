@@ -94,8 +94,8 @@ behavior(lexerMachine):
   ini: Prime
   fin: BlankLines
   transition:
-    discard context.advance()
-    discard context.advance()
+    discard advance context
+    discard advance context
     context.indents.push(0)
     tokens.add(initToken(Indent))
 
@@ -107,7 +107,7 @@ behavior(lexerMachine):
     while not context.eof:
       lexeme = context.appendWhile(IndentChars)
       if context.match "\n":
-        discard context.advance()
+        discard advance context
       else:
         break
 
@@ -324,7 +324,7 @@ behavior(lexerMachine):
   event: IsBinary
   transition:
     let pos = context.currentPosition
-    let number = context.advance() & context.advance() & context.appendWhile(BinaryChars)
+    let number = context.advance & context.advance & context.appendWhile(BinaryChars)
     tokens.add(initToken(BinInteger, pos, number))
 
 behavior(lexerMachine):
@@ -333,7 +333,7 @@ behavior(lexerMachine):
   event: IsHexidecimal
   transition:
     let pos = context.currentPosition
-    let number = context.advance() & context.advance() & context.appendWhile(HexChars)
+    let number = context.advance & context.advance & context.appendWhile(HexChars)
     tokens.add(initToken(HexInteger, pos, number))
 
 behavior(lexerMachine):
@@ -342,7 +342,7 @@ behavior(lexerMachine):
   event: IsOctal
   transition:
     let pos = context.currentPosition
-    let number = context.advance() & context.advance() & context.appendWhile(OctChars)
+    let number = context.advance & context.advance & context.appendWhile(OctChars)
     tokens.add(initToken(OctInteger, pos, number))
 
 behavior(lexerMachine):
@@ -352,7 +352,7 @@ behavior(lexerMachine):
     let pos = context.currentPosition
     let number = context.appendWhile(DigitChars)
     if context.match(".") and context.matchNextAny(DigitChars):
-      tokens.add(initToken(Float, pos, number & context.advance() & context.appendWhile(DigitChars)))
+      tokens.add(initToken(Float, pos, number & context.advance & context.appendWhile(DigitChars)))
     else:
       tokens.add(initToken(DecInteger, pos, number))
 
@@ -362,56 +362,56 @@ behavior(lexerMachine):
   transition:
     let pos = context.currentPosition
     var string_value: string
-    discard context.advance
+    discard advance context
 
     while not context.eof():
       case context.currentCharacter:
         of "\"":
           tokens.add(initToken(String, pos, string_value))
-          discard context.advance()
+          discard advance context
           break
         of "\\":
           case context.nextCharacter:
             of "0":
               string_value &= "\0"
-              discard context.advance
-              discard context.advance
+              discard advance context
+              discard advance context
             of "a":
               string_value &= "\a"
-              discard context.advance
-              discard context.advance
+              discard advance context
+              discard advance context
             of "b":
               string_value &= "\b"
-              discard context.advance
-              discard context.advance
+              discard advance context
+              discard advance context
             of "f":
               string_value &= "\f"
-              discard context.advance
-              discard context.advance
+              discard advance context
+              discard advance context
             of "n":
               string_value &= "\n"
-              discard context.advance
-              discard context.advance
+              discard advance context
+              discard advance context
             of "r":
               string_value &= "\r"
-              discard context.advance
-              discard context.advance
+              discard advance context
+              discard advance context
             of "t":
               string_value &= "\t"
-              discard context.advance
-              discard context.advance
+              discard advance context
+              discard advance context
             of "v":
               string_value &= "\v"
-              discard context.advance
-              discard context.advance
+              discard advance context
+              discard advance context
             of "\\":
               string_value &= "\\"
-              discard context.advance
-              discard context.advance
+              discard advance context
+              discard advance context
             of "\"":
               string_value &= "\""
-              discard context.advance
-              discard context.advance
+              discard advance context
+              discard advance context
             else:
               tokens.add(initToken(Error, pos, "Invalid escape character"))
               break
@@ -419,7 +419,7 @@ behavior(lexerMachine):
           tokens.add(initToken(Error, pos, "Newline in middle of string"))
           break
         else:
-          string_value &= context.advance
+          string_value &= advance context
 
 behavior(lexerMachine):
   ini: Dedents
