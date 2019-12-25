@@ -257,25 +257,33 @@ behavior(lexerMachine):
             tokens.add(initToken(GreaterThan, pos))
 
       # Brackets
-      # TODO: Manage bracket stack
       of "(":
         tokens.add(initToken(LeftParen, pos))
-        discard advance context
+        context.brackets.push(advance context)
       of ")":
         tokens.add(initToken(RightParen, pos))
-        discard advance context
+        if context.brackets.pop == advance context:
+          tokens.add(initToken(RightParen, pos))
+        else:
+          tokens.add(initToken(Error, pos, "Mismatched bracket; expected )"))
       of "[":
         tokens.add(initToken(LeftSquare, pos))
-        discard advance context
+        context.brackets.push(advance context)
       of "]":
         tokens.add(initToken(RightSquare, pos))
-        discard advance context
+        if context.brackets.pop == advance context:
+          tokens.add(initToken(RightSquare, pos))
+        else:
+          tokens.add(initToken(Error, pos, "Mismatched bracket; expected ]"))
       of "{":
         tokens.add(initToken(LeftBrace, pos))
-        discard advance context
+        context.brackets.push(advance context)
       of "}":
         tokens.add(initToken(RightBrace, pos))
-        discard advance context
+        if context.brackets.pop == advance context:
+          tokens.add(initToken(RightBrace, pos))
+        else:
+          tokens.add(initToken(Error, pos, "Mismatched bracket; expected }"))
       
       else:
         tokens.add(initToken(Error, pos))
@@ -459,6 +467,6 @@ proc lexString*(str: string) : seq[Token] =
 
 
 when isMainModule:
-  let tokens = lexString("\"this is a string\"\n4.2\n123\n0x456\n0b0101\n0o2632    +++if else identifier")
+  let tokens = lexString("\"this is a string\"\n(4.2)\n123\n0x456\n0b0101\n0o2632    +++if else identifier")
   for tok in tokens:
     echo tok
