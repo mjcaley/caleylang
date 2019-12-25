@@ -7,7 +7,10 @@ type
     
     Newline,
 
-    Integer,
+    DecInteger,
+    BinInteger,
+    OctInteger,
+    HexInteger,
     Float,
     String,
 

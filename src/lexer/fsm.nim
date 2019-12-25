@@ -318,7 +318,7 @@ behavior(lexerMachine):
   transition:
     let pos = context.currentPosition
     let number = context.advance() & context.advance() & context.appendWhile(BinaryChars)
-    tokens.add(initToken(Integer, pos, number))
+    tokens.add(initToken(BinInteger, pos, number))
 
 behavior(lexerMachine):
   ini: Number
@@ -327,7 +327,7 @@ behavior(lexerMachine):
   transition:
     let pos = context.currentPosition
     let number = context.advance() & context.advance() & context.appendWhile(HexChars)
-    tokens.add(initToken(Integer, pos, number))
+    tokens.add(initToken(HexInteger, pos, number))
 
 behavior(lexerMachine):
   ini: Number
@@ -336,7 +336,7 @@ behavior(lexerMachine):
   transition:
     let pos = context.currentPosition
     let number = context.advance() & context.advance() & context.appendWhile(OctChars)
-    tokens.add(initToken(Integer, pos, number))
+    tokens.add(initToken(OctInteger, pos, number))
 
 behavior(lexerMachine):
   ini: Number
@@ -347,7 +347,7 @@ behavior(lexerMachine):
     if context.match(".") and context.matchNextAny(DigitChars):
       tokens.add(initToken(Float, pos, number & context.advance() & context.appendWhile(DigitChars)))
     else:
-      tokens.add(initToken(Integer, pos, number))
+      tokens.add(initToken(DecInteger, pos, number))
 
 behavior(lexerMachine):
   ini: Strings
