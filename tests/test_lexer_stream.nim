@@ -1,4 +1,4 @@
-import options, unittest
+import options, unicode, unittest
 import lexer/private/lexer_stream, lexer/position
 
 
@@ -11,7 +11,7 @@ test "First character from string":
     check:
       pack.position.line == 1
       pack.position.column == 1
-      pack.character.toUTF8 == "T"
+      pack.character == "T"
 
 test "None is returned from empty string":
   var stream = initLexerStreamString("")
@@ -24,7 +24,7 @@ test "Characters then none is returned":
   var stream = initLexerStreamString(test_input)
   
   var column = 1
-  for character in utf8(test_input):
+  for character in test_input.utf8:
     let result = stream.next()
 
     require(result.isSome == true)
@@ -33,7 +33,7 @@ test "Characters then none is returned":
     check:
       pack.position.line == 1
       pack.position.column == column
-      pack.character.toUTF8 == character
+      pack.character == character
     inc column
 
   let result = stream.next()
