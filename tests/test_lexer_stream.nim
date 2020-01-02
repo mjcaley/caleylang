@@ -1,4 +1,4 @@
-import options, unicode, unittest
+import options, unittest
 import lexer/private/lexer_stream, lexer/position
 
 
@@ -56,18 +56,18 @@ test "Newline increases the line position":
 test "Advances through string":
   let test_input = "Test"
   var stream = initLexerStreamString(test_input)
-  let default = (position: initPosition(), character: "\0".runeAt(0))
+  let default = (position: initPosition(), character: "\0")
 
   check:
-    "T".runeAt(0) == stream.next().get(default).character
-    "e".runeAt(0) == stream.next().get(default).character
-    "s".runeAt(0) == stream.next().get(default).character
-    "t".runeAt(0) == stream.next().get(default).character
+    "T" == stream.next().get(default).character
+    "e" == stream.next().get(default).character
+    "s" == stream.next().get(default).character
+    "t" == stream.next().get(default).character
 
 test "Position increments on line":
   let test_input = "Test"
   var stream = initLexerStreamString(test_input)
-  let default = (position: initPosition(), character: "\0".runeAt(0))
+  let default = (position: initPosition(), character: "\0")
 
   check:
     initPosition(line=1, column=1) == stream.next().get(default).position

@@ -1,53 +1,52 @@
-import lexer_object, context, constants
-export lexer_object.Lexer
+import context, constants
 
 
-proc current*(self: var Lexer) : string =
-  result = self.context.currentCharacter
+proc current*(self: var Context) : string =
+  result = self.currentCharacter
   
-proc next*(self: var Lexer) : string =
-  result = self.context.nextCharacter
+proc next*(self: var Context) : string =
+  result = self.nextCharacter
 
-proc match*(self: var Lexer, character: string) : bool =
+proc match*(self: var Context, character: string) : bool =
   result = self.current == character
 
-proc matchAny*(self: var Lexer, characters: openArray[string]) : bool =
+proc matchAny*(self: var Context, characters: openArray[string]) : bool =
   for character in characters:
     if self.match(character):
       return true
 
-proc matchNext*(self: var Lexer, character: string) : bool =
+proc matchNext*(self: var Context, character: string) : bool =
   result = self.next == character
 
-proc lexemeWhile*[T](self: var Lexer, characters: openArray[T]) : string =
+proc matchNextAny*(self: var Context, characters: openArray[string]) : bool =
+  for character in characters:
+    if self.matchNext(character):
+      return true
+
+proc lexemeWhile*[T](self: var Context, characters: openArray[T]) : string =
   while self.matchAny(characters):
-    result.add(self.context.advance())
+    result.add(self.advance())
   self.lexeme = result
 
-proc appendWhile*[T](self: var Lexer, characters: openArray[T]) : string =
+proc appendWhile*[T](self: var Context, characters: openArray[T]) : string =
   while self.matchAny(characters):
-    result.add(self.context.advance())
+    result.add(self.advance())
 
-proc appendWhileNot*[T](self: var Lexer, characters: openArray[T]) : string =
-  while not self.matchAny(characters):
+proc appendWhileNot*[T](self: var Context, characters: openArray[T]) : string =
+  while not self.matchAny(characters) and self.currentCharacter != "":
     result.add(self.current)
-    discard self.context.advance()
+    discard self.advance()
 
-proc skip*[T](self: var Lexer, character: T) =
+proc skip*[T](self: var Context, character: T) =
   when T is seq or T is array:
     while self.matchAny(character):
-      discard self.context.advance()
+      discard self.advance()
   else:
     while self.match(character):
-      discard self.context.advance()
+      discard self.advance()
 
-proc skipWhitespace*(self: var Lexer) =
+proc skipWhitespace*(self: var Context) =
   self.skip(WhitespaceChars)
 
-proc eof*(self: var Lexer) : bool =
+proc eof*(self: var Context) : bool =
   self.current == "" and self.next == ""
-
-proc consume*(self: var Lexer) : string =
-  result = self.lexeme
-  self.lexeme = ""
-  

@@ -1,4 +1,4 @@
-import options, unicode
+import options
 import lexer_stream, ../position, ../../utility/stack
 export position.Position
 
@@ -36,7 +36,7 @@ proc advance*(self: var Context) : string =
   self.currentPos = self.nextPos
   let next = self.stream.next()
   if next.isSome:
-    fastToUTF8Copy(next.get().character, self.nextChar, 0, doInc=false)
+    self.nextChar = next.get().character
     self.nextPos = next.get().position
   else:
     self.nextChar = ""

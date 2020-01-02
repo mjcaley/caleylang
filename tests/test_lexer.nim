@@ -1,66 +1,35 @@
 import unittest
 import lexer/lexer
-from lexer/private/lexer_object import state, State
 
 
-test "Default Start state":
-  var l = initLexerFromString("")
+test "Indent and Dedent surround input":
+  let results = lexString("")
 
-  check l.state == State.Start
+  check:
+    results.len == 2
+    results[0].kind == Indent
+    results[1].kind == Dedent
 
-# test "All Dedents are popped":
-#   var l = initLexerFromString("    +\n        +\n")
-#   echo "State:", l.state, " Token: ", l.emit().kind
-#   echo "State:", l.state, " Token: ", l.emit().kind
-#   echo "State:", l.state, " Token: ", l.emit().kind
-#   echo "State:", l.state, " Token: ", l.emit().kind
-#   echo "State:", l.state, " Token: ", l.emit().kind
-#   echo "State:", l.state, " Token: ", l.emit().kind
-#   # discard l.emit()
-#   # discard l.emit()
-#   # discard l.emit()
-#   # discard l.emit()
-#   # discard l.emit()
-#   # discard l.emit()
-#   # discard l.emit()
+test "Blank lines are ignored":
+  let results = lexString(" \n\t\n    \n\t\t\t\t\n")
 
-#   check:
-#     l.emit().kind == Dedent
-#     l.emit().kind == Dedent
-#     l.emit().kind == EndOfFile
+  check:
+    results.len == 2
+    results[0].kind == Indent
+    results[1].kind == Dedent
 
-# test "EndOfFile token on end state":
-#   var l = initLexerFromString("")
-#   let result = l.emit()
+test "Blank line before character is ignored":
+  let results = lexString("    \n+")
 
-#   check result.kind == EndOfFile
+  check:
+    results.len == 3
+    results[0].kind == Indent
+    results[1].kind == Plus
+    results[2].kind == Dedent
 
-# test "Indent on whitespace":
-#   var l = initLexerFromString("    42")
-#   let result = l.emit()
+test "Newline token":
+  let results = lexString("+\n")
 
-#   check result.kind == Indent
-
-# test "Don't return Indent on blank line":
-#   var l = initLexerFromString("    \n42")
-#   let result = l.emit()
-
-#   check result.kind != Indent
-
-# test "Return integer":
-#   let test_input = "42"
-#   var l = initLexerFromString(test_input)
-#   let result = l.emit()
-
-#   check:
-#     result.kind == Integer
-#     result.value == test_input
-
-# test "Count":
-#   let test_input = "+++++"
-#   var l = initLexerFromString(test_input)
-#   echo l.emit()
-#   echo l.emit()
-#   echo l.emit()
-#   echo l.emit()
-#   echo l.emit()
+  check:
+    results.len == 4
+    results[2].kind == Newline

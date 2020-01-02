@@ -1,106 +1,93 @@
 import unittest
-import lexer/private/[utility, lexer_object, context]
+import lexer/private/[context, lexer_stream, utility]
 
 test "current returns emptry string on first two characters":
-  var l = initLexerFromString("")
+  var c = initContext(initLexerStreamString "")
 
-  check l.current == ""
-  discard l.context.advance()
-  check l.current == ""
+  check c.current == ""
+  discard c.advance()
+  check c.current == ""
 
 suite "Empty string":
   setup:
-    var l = initLexerFromString("")
+    var c = initContext(initLexerStreamString(""))
 
   test "next returns empty string on first character":  
-    check l.next == ""
+    check c.next == ""
   
 suite "Next is primed with 'a'":
   setup:
-    var l = initLexerFromString("a")
-    discard l.context.advance()
+    var c = initContext(initLexerStreamString("a"))
+    discard c.advance()
     
   test "next returns first character":
-    check l.next == "a"
+    check c.next == "a"
     
   test "matchNext matches character":
-    check l.matchNext("a") == true
+    check c.matchNext("a") == true
 
   test "matchNext doesn't match character":
-    check l.matchNext("b") == false
+    check c.matchNext("b") == false
 
 suite "Text of 'abc'":
   setup:
-    var l = initLexerFromString("abc")
-    discard l.context.advance()
-    discard l.context.advance()
+    var c = initContext(initLexerStreamString("abc"))
+    discard c.advance()
+    discard c.advance()
   
   test "current returns first character":
-    check l.current == "a"
+    check c.current == "a"
 
   test "match against current character":
-    check l.match("a") == true
+    check c.match("a") == true
 
   test "Don't match against current character":
-    check l.match("b") == false
+    check c.match("b") == false
   
   test "matchAny against sequence of characters":
-    check l.matchAny(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]) == false
+    check c.matchAny(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]) == false
 
   test "Don't matchAny against sequence of characters":
-    check l.matchAny(["a", "b", "c"]) == true
-
-  test "lexemeWhile":
-    let result = l.lexemeWhile(["a", "b"])
-
-    check:
-      result == "ab"
-      l.lexeme == "ab"
+    check c.matchAny(["a", "b", "c"]) == true
 
   test "appendWhile":
-    let result = l.appendWhile(["a", "b"])
+    let result = c.appendWhile(["a", "b"])
 
     check result == "ab"
 
   test "appendWhileNot":
-    let result = l.appendWhileNot(["c", "d"])
+    let result = c.appendWhileNot(["c", "d"])
 
     check result == "ab"
 
-  test "consume":
-    discard l.lexemeWhile(["a", "b", "c"])
-    let result = l.consume()
-
-    check result == "abc"
-
 suite "Text of 'aaabc'":
   setup:
-    var l = initLexerFromString("aaabc")
-    discard l.context.advance()
-    discard l.context.advance()
+    var c = initContext(initLexerStreamString("aaabc"))
+    discard c.advance()
+    discard c.advance()
 
   test "skip single character":
-    l.skip("a")
+    c.skip("a")
 
-    check l.current == "b"
+    check c.current == "b"
 
   test "skip multiple characters":
-    l.skip(["a", "b"])
+    c.skip(["a", "b"])
 
-    check l.current == "c"
+    check c.current == "c"
 
 test "skipWhitespace":
-  var l = initLexerFromString("    abc")
-  discard l.context.advance()
-  discard l.context.advance()
-  l.skipWhitespace()
+  var c = initContext(initLexerStreamString("    abc"))
+  discard c.advance()
+  discard c.advance()
+  c.skipWhitespace()
 
-  check l.current == "a"
+  check c.current == "a"
 
 test "End of file at end":
-  var l = initLexerFromString("a")
-  discard l.context.advance()
-  discard l.context.advance()
-  discard l.context.advance()
+  var c = initContext(initLexerStreamString("a"))
+  discard c.advance()
+  discard c.advance()
+  discard c.advance()
 
-  check l.eof() == true
+  check c.eof() == true

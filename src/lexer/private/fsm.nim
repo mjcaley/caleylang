@@ -1,5 +1,5 @@
 import synthesis
-import position, private / [constants, context, lexer_stream, utility2], token, ../utility/stack
+import ../position, constants, context, lexer_stream, utility, ../token, ../../utility/stack
 
 
 type Phase = enum
@@ -33,16 +33,11 @@ type Event = enum
 declareAutomaton(lexerMachine, Phase, Event)
 
 setPrologue(lexerMachine):
-  echo "Prologue for lexerMachine"
   var lexeme: string
 
 setInitialState(lexerMachine, Prime)
 
 setTerminalState(lexerMachine, End)
-
-setEpilogue(lexerMachine):
-  echo "Epilogue for lexerMachine"
-
 
 #Events
 
@@ -99,11 +94,15 @@ behavior(lexerMachine):
     context.indents.push(0)
     tokens.add(initToken(Indent))
 
+onEntry(lexerMachine, [BlankLines, Operator]):
+  debugEcho "current: '", context.currentCharacter, "' pos: ", context.currentPosition
+
 behavior(lexerMachine):
   ini: BlankLines
   fin: Indents
   event: StartOfLine
   transition:
+    debugEcho "[BlankLines] in start of line"
     while not context.eof:
       lexeme = context.appendWhile(IndentChars)
       if context.match "\n":
@@ -157,6 +156,7 @@ behavior(lexerMachine):
   fin: Operator
   event: IsReserved
   transition:
+    debugEcho "[Branch] -> [Operator]"
     discard
 
 behavior(lexerMachine):
@@ -183,6 +183,7 @@ behavior(lexerMachine):
   ini: Operator
   fin: BlankLines
   transition:
+    debugEcho "[Operator] current: '", context.currentCharacter, "' pos: ", context.currentPosition
     let pos = context.currentPosition
     case context.currentCharacter:
       of "\n":
@@ -203,30 +204,35 @@ behavior(lexerMachine):
         discard advance context
         if context.match("="):
           tokens.add(initToken(PlusAssign, pos))
+          discard advance context
         else:
           tokens.add(initToken(Plus, pos))
       of "-":
         discard advance context
         if context.match("="):
           tokens.add(initToken(MinusAssign, pos))
+          discard advance context
         else:
           tokens.add(initToken(Minus, pos))
       of "*":
         discard advance context
         if context.match("="):
           tokens.add(initToken(MultiplyAssign, pos))
+          discard advance context
         else:
           tokens.add(initToken(Multiply, pos))
       of "/":
         discard advance context
         if context.match("="):
           tokens.add(initToken(DivideAssign, pos))
+          discard advance context
         else:
           tokens.add(initToken(Divide, pos))
       of "%":
         discard advance context
         if context.match("="):
           tokens.add(initToken(ModuloAssign, pos))
+          discard advance context
         else:
           tokens.add(initToken(Modulo, pos))
 
