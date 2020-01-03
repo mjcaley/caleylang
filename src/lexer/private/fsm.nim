@@ -1,3 +1,4 @@
+import strutils
 import synthesis
 import ../position, constants, context, lexer_stream, utility, ../token, ../../utility/stack
 
@@ -94,15 +95,11 @@ behavior(lexerMachine):
     context.indents.push(0)
     tokens.add(initToken(Indent))
 
-onEntry(lexerMachine, [BlankLines, Operator]):
-  debugEcho "current: '", context.currentCharacter, "' pos: ", context.currentPosition
-
 behavior(lexerMachine):
   ini: BlankLines
   fin: Indents
   event: StartOfLine
   transition:
-    debugEcho "[BlankLines] in start of line"
     while not context.eof:
       lexeme = context.appendWhile(IndentChars)
       if context.match "\n":
@@ -122,6 +119,9 @@ behavior(lexerMachine):
   interrupt: EndOfFile
   transition:
     discard
+
+onEntry(lexerMachine, [Indents, Dedents]):
+  lexeme = lexeme.replace("\t", "    ")
 
 behavior(lexerMachine):
   ini: Indents
@@ -143,7 +143,10 @@ behavior(lexerMachine):
   event: LexemeGreaterThanIndent
   transition:
     let length = lexeme.len
-    let pos = initPosition(line=context.currentPosition.line, column=context.currentPosition.column - length)
+    let pos = initPosition(
+      line=context.currentPosition.line,
+      column=context.currentPosition.column - length
+    )
     context.indents.push(length)
     tokens.add(initToken(Indent, pos))
     lexeme = ""
@@ -156,7 +159,6 @@ behavior(lexerMachine):
   fin: Operator
   event: IsReserved
   transition:
-    debugEcho "[Branch] -> [Operator]"
     discard
 
 behavior(lexerMachine):
@@ -183,7 +185,6 @@ behavior(lexerMachine):
   ini: Operator
   fin: BlankLines
   transition:
-    debugEcho "[Operator] current: '", context.currentCharacter, "' pos: ", context.currentPosition
     let pos = context.currentPosition
     case context.currentCharacter:
       of "\n":
@@ -216,11 +217,20 @@ behavior(lexerMachine):
           tokens.add(initToken(Minus, pos))
       of "*":
         discard advance context
-        if context.match("="):
-          tokens.add(initToken(MultiplyAssign, pos))
-          discard advance context
-        else:
-          tokens.add(initToken(Multiply, pos))
+        case context.currentCharacter:
+          of "=":
+            tokens.add(initToken(MultiplyAssign, pos))
+            discard advance context
+          of "*":
+            discard advance context
+            case context.currentCharacter:
+              of "=":
+                tokens.add(initToken(ExponentAssign, pos))
+                discard advance context
+              else:
+                tokens.add(initToken(Exponent, pos))
+          else:
+            tokens.add(initToken(Multiply, pos))
       of "/":
         discard advance context
         if context.match("="):
@@ -261,14 +271,22 @@ behavior(lexerMachine):
             discard advance context
           else:
             tokens.add(initToken(GreaterThan, pos))
+      of "!":
+        discard advance context
+        case context.currentCharacter:
+          of "=":
+            tokens.add(initToken(NotEqual, pos))
+            discard advance context
+          else:
+            tokens.add(initToken(Error, pos, "Expected = character after !"))
 
       # Brackets
       of "(":
         tokens.add(initToken(LeftParen, pos))
         context.brackets.push(advance context)
       of ")":
-        tokens.add(initToken(RightParen, pos))
-        if context.brackets.pop == advance context:
+        discard advance context
+        if context.brackets.pop == "(":
           tokens.add(initToken(RightParen, pos))
         else:
           tokens.add(initToken(Error, pos, "Mismatched bracket; expected )"))
@@ -276,8 +294,8 @@ behavior(lexerMachine):
         tokens.add(initToken(LeftSquare, pos))
         context.brackets.push(advance context)
       of "]":
-        tokens.add(initToken(RightSquare, pos))
-        if context.brackets.pop == advance context:
+        discard advance context
+        if context.brackets.pop == "[":
           tokens.add(initToken(RightSquare, pos))
         else:
           tokens.add(initToken(Error, pos, "Mismatched bracket; expected ]"))
@@ -285,8 +303,8 @@ behavior(lexerMachine):
         tokens.add(initToken(LeftBrace, pos))
         context.brackets.push(advance context)
       of "}":
-        tokens.add(initToken(RightBrace, pos))
-        if context.brackets.pop == advance context:
+        discard advance context
+        if context.brackets.pop == "{":
           tokens.add(initToken(RightBrace, pos))
         else:
           tokens.add(initToken(Error, pos, "Mismatched bracket; expected }"))
@@ -364,7 +382,14 @@ behavior(lexerMachine):
   fin: BlankLines
   transition:
     let pos = context.currentPosition
+
+    if context.match("0") and context.matchNextAny(DigitChars):
+      tokens.add(initToken(Error, pos, "Integer cannot start with a 0"))
+      discard context.appendWhile(DigitChars)
+      return
+
     let number = context.appendWhile(DigitChars)
+
     if context.match(".") and context.matchNextAny(DigitChars):
       tokens.add(initToken(Float, pos, number & context.advance & context.appendWhile(DigitChars)))
     else:
@@ -381,8 +406,6 @@ behavior(lexerMachine):
     while not context.eof():
       case context.currentCharacter:
         of "\"":
-          tokens.add(initToken(String, pos, string_value))
-          discard advance context
           break
         of "\\":
           case context.nextCharacter:
@@ -435,11 +458,16 @@ behavior(lexerMachine):
         else:
           string_value &= advance context
 
+    if context.match("\""):  
+      tokens.add(initToken(String, pos, string_value))
+      discard advance context
+    else:
+      tokens.add(initToken(Error, pos, "String does not have closing double quote"))
+
 behavior(lexerMachine):
   ini: Dedents
   fin: BlankLines
   transition:
-    debugEcho "Dedents to BlankLines"
     let length = lexeme.len
     lexeme = ""
     let pos = initPosition(line=context.currentPosition.line, column=context.currentPosition.column - length)
@@ -453,6 +481,11 @@ behavior(lexerMachine):
   event: EndOfFile
   transition:
     let pos = context.currentPosition
+
+    while not context.brackets.empty:
+      let bracket = context.brackets.pop
+      tokens.add(initToken(Error, pos, "Bracket " & bracket & " not closed"))
+
     while not context.indents.empty:
       discard context.indents.pop
       tokens.add(initToken(Dedent, pos))
@@ -470,9 +503,3 @@ proc lexString*(str: string) : seq[Token] =
   var stream = initLexerStreamString(str)
   var context = initContext(stream)
   observeLexer(context, result)
-
-
-when isMainModule:
-  let tokens = lexString("\"this is a string\"\n(4.2)\n123\n0x456\n0b0101\n0o2632    +++if else identifier")
-  for tok in tokens:
-    echo tok
