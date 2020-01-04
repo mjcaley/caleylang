@@ -13,7 +13,8 @@ proc citems(s: seq[Token]) : iterator() : Token =
     for i in s:
       yield i
 
-proc advance*(self: var Parser) =
+proc advance*(self: var Parser) : Option[Token] =
+  result = self.current
   self.current = self.next
   let next = self.tokens()
   if self.tokens.finished:
@@ -23,5 +24,5 @@ proc advance*(self: var Parser) =
 
 proc initParser*(tokens: seq[Token]) : Parser =
   result = Parser(tokens: citems(tokens))
-  result.advance()
-  result.advance()
+  discard result.advance()
+  discard result.advance()
