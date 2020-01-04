@@ -1,6 +1,6 @@
 import strutils
 import synthesis
-import ../position, constants, context, lexer_stream, utility, ../token, ../../utility/stack
+import ../position, constants, context, lexer_stream, lexer_utility, ../token, stack
 
 
 type Phase = enum

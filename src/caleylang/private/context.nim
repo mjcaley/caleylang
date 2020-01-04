@@ -1,5 +1,5 @@
 import options
-import lexer_stream, ../position, ../../utility/stack
+import lexer_stream, ../position, stack
 export position.Position
 
 type

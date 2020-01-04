@@ -1,5 +1,5 @@
 import options
-import ../../lexer/token
+import ../token
 
 
 type

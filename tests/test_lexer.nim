@@ -1,5 +1,5 @@
 import unittest
-import lexer/lexer
+import caleylang/lexer
 
 
 suite "Indentation states":

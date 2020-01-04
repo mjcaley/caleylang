@@ -1,5 +1,5 @@
 import unittest
-import lexer/private/[context, lexer_stream], lexer/position
+import caleylang/private/[context, lexer_stream], caleylang/position
 
 
 suite "Context tests":

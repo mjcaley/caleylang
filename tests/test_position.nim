@@ -1,5 +1,5 @@
 import unittest
-import lexer/position
+import caleylang/position
 
 
 test "Position defaults to line 1, column 1":

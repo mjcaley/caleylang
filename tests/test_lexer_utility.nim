@@ -1,5 +1,5 @@
 import unittest
-import lexer/private/[context, lexer_stream, utility]
+import caleylang/private/[context, lexer_stream, lexer_utility]
 
 test "current returns emptry string on first two characters":
   var c = initContext(initLexerStreamString "")

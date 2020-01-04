@@ -1,5 +1,5 @@
 import options
-import ../../lexer/token
+import ../token
 import parser_object, parse_tree
 
 
