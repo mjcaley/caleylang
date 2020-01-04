@@ -17,6 +17,7 @@ type
     Identifier,
 
     # Keywords
+    Import,
     Function,
     Struct,
     If,

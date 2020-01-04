@@ -321,6 +321,8 @@ behavior(lexerMachine):
     let word = context.appendWhileNot(ReservedChars)
 
     case word:
+      of "import":
+        tokens.add(initToken(Import, pos))
       of "func":
         tokens.add(initToken(Function, pos))
       of "struct":

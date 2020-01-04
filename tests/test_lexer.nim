@@ -279,6 +279,13 @@ suite "Operator state":
       true
 
 suite "Word state":
+  test "import keyword":
+    let results = lexString("import")
+
+    check:
+      results.len == 3
+      results[1].kind == Import
+
   test "func keyword":
     let results = lexString("func")
 
