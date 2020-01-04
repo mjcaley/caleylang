@@ -2,6 +2,8 @@ import position
 
 type
   TokenType* = enum
+    Invalid,
+
     Indent,
     Dedent,
     
