@@ -127,6 +127,70 @@ suite "Exponent expression rule":
       exponent == e.BinaryExpression.operator
       three == e.BinaryExpression.right.Atom.value
 
+suite "Product expression rule":
+  test "Non-matching token calls exponent expression rule":
+    let one = initToken(DecInteger, pos, "1")
+    let exponent = initToken(Exponent, pos)
+    let two = initToken(DecInteger, pos, "2")
+    var p = initParser(@[one, exponent, two])
+    let e = p.productExpression()
+
+    check:
+      one == e.BinaryExpression.left.Atom.value
+      exponent == e.BinaryExpression.operator
+      two == e.BinaryExpression.right.Atom.value
+
+  test "Parses multiply":
+    let multiply = initToken(Multiply, pos)
+    var p = initParser(@[fortyTwo, multiply, fortyTwo])
+    let e = p.productExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      multiply == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses divide":
+    let divide = initToken(Divide, pos)
+    var p = initParser(@[fortyTwo, divide, fortyTwo])
+    let e = p.productExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      divide == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value      
+
+  test "Parses modulo":
+    let modulo = initToken(Modulo, pos)
+    var p = initParser(@[fortyTwo, modulo, fortyTwo])
+    let e = p.productExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      modulo == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value   
+
+  test "Parses multiple multiply operators":
+    let one = initToken(DecInteger, pos, "1")
+    let two = initToken(DecInteger, pos, "2")
+    let three = initToken(DecInteger, pos, "3")
+    let four = initToken(DecInteger, pos, "4")
+    let multiply = initToken(Multiply, pos)
+    let divide = initToken(Divide, pos)
+    let modulo = initToken(Modulo, pos)
+
+    var p = initParser(@[one, multiply, two, divide, three, modulo, four])
+    let e = p.productExpression()
+
+    check:
+      one ==      e.BinaryExpression.left.BinaryExpression.left.BinaryExpression.left.Atom.value
+      multiply == e.BinaryExpression.left.BinaryExpression.left.BinaryExpression.operator
+      two ==      e.BinaryExpression.left.BinaryExpression.left.BinaryExpression.right.Atom.value
+      divide ==   e.BinaryExpression.left.BinaryExpression.operator
+      three ==    e.BinaryExpression.left.BinaryExpression.right.Atom.value
+      modulo ==   e.BinaryExpression.operator
+      four ==     e.BinaryExpression.right.Atom.value
+
 suite "Expression rule":
   test "Parses Atom":
     var p = initParser(@[fortyTwo])

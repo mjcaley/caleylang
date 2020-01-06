@@ -53,6 +53,18 @@ proc exponentExpression*(self: var Parser) : Expression =
     expression.right = right
     result = expression
 
+proc productExpression*(self: var Parser) : Expression =
+  result = self.exponentExpression()
+
+  while self.current.match(Multiply, Divide, Modulo):
+    let operator = self.advance()
+    let right = self.exponentExpression()
+    let expression = new BinaryExpression
+    expression.left = result
+    expression.operator = operator.get()
+    expression.right = right
+    result = expression
+
 proc expression*(self: var Parser) : Expression =
   result = self.atom()
 
