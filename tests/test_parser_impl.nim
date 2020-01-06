@@ -92,6 +92,41 @@ suite "Unary expression rule":
       Minus == e.UnaryExpression.operator.kind
       fortyTwo == e.UnaryExpression.operand.Atom.value
 
+suite "Exponent expression rule":
+  test "Non-matching token calls unary expression rule":
+    var p = initParser(@[initToken(Not, pos), fortyTwo])
+    let e = p.exponentExpression()
+
+    check:
+      Not == e.UnaryExpression.operator.kind
+      fortyTwo == e.UnaryExpression.operand.Atom.value
+
+  test "Parses exponent":
+    let exponent = initToken(Exponent, pos)
+    var p = initParser(@[fortyTwo, exponent, fortyTwo])
+    let e = p.exponentExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      exponent == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses multiple exponents":
+    let one = initToken(DecInteger, pos, "1")
+    let two = initToken(DecInteger, pos, "2")
+    let three = initToken(DecInteger, pos, "3")
+    let exponent = initToken(Exponent, pos)
+
+    var p = initParser(@[one, exponent, two, exponent, three])
+    let e = p.exponentExpression()
+
+    check:
+      one == e.BinaryExpression.left.BinaryExpression.left.Atom.value
+      exponent == e.BinaryExpression.left.BinaryExpression.operator
+      two == e.BinaryExpression.left.BinaryExpression.right.Atom.value
+      exponent == e.BinaryExpression.operator
+      three == e.BinaryExpression.right.Atom.value
+
 suite "Expression rule":
   test "Parses Atom":
     var p = initParser(@[fortyTwo])

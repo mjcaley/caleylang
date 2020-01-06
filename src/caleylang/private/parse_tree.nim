@@ -63,6 +63,12 @@ proc newUnaryExpression*(operator: Token, operand: Expression) : UnaryExpression
   result.operator = operator
   result.operand = operand
 
+proc newBinaryExpression*(left, right: Expression, operator: Token) : BinaryExpression =
+  result = new BinaryExpression
+  result.left = left
+  result.right = right
+  result.operator = operator
+
 proc newAtom*(t: Token) : Atom =
   result = new Atom
   result.value = t

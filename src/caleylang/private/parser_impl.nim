@@ -41,6 +41,18 @@ proc unaryExpression*(self: var Parser) : Expression =
     else:
       result = self.atom()
 
+proc exponentExpression*(self: var Parser) : Expression =
+  result = self.unaryExpression()
+
+  while self.current.match(Exponent):
+    let operator = self.advance()
+    let right = self.unaryExpression()
+    let expression = new BinaryExpression
+    expression.left = result
+    expression.operator = operator.get()
+    expression.right = right
+    result = expression
+
 proc expression*(self: var Parser) : Expression =
   result = self.atom()
 
