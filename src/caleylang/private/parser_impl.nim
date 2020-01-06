@@ -45,28 +45,31 @@ proc exponentExpression*(self: var Parser) : Expression =
   result = self.unaryExpression()
 
   while self.current.match(Exponent):
-    let operator = self.advance()
+    let operator = self.advance().get()
     let right = self.unaryExpression()
-    let expression = new BinaryExpression
-    expression.left = result
-    expression.operator = operator.get()
-    expression.right = right
+    let expression = newBinaryExpression(result, right, operator)
     result = expression
 
 proc productExpression*(self: var Parser) : Expression =
   result = self.exponentExpression()
 
   while self.current.match(Multiply, Divide, Modulo):
-    let operator = self.advance()
+    let operator = self.advance().get()
     let right = self.exponentExpression()
-    let expression = new BinaryExpression
-    expression.left = result
-    expression.operator = operator.get()
-    expression.right = right
+    let expression = newBinaryExpression(result, right, operator)
+    result = expression
+
+proc sumExpression*(self: var Parser) : Expression =
+  result = self.productExpression()
+
+  while self.current.match(Plus, Minus):
+    let operator = self.advance().get()
+    let right = self.productExpression()
+    let expression = newBinaryExpression(result, right, operator)
     result = expression
 
 proc expression*(self: var Parser) : Expression =
-  result = self.atom()
+  result = self.sumExpression()
 
 proc statement*(self: var Parser) : Statement =
   result = Statement newExpressionStatement(self.expression())

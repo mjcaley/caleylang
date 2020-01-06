@@ -158,7 +158,7 @@ suite "Product expression rule":
     check:
       fortyTwo == e.BinaryExpression.left.Atom.value
       divide == e.BinaryExpression.operator
-      fortyTwo == e.BinaryExpression.right.Atom.value      
+      fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses modulo":
     let modulo = initToken(Modulo, pos)
@@ -168,7 +168,7 @@ suite "Product expression rule":
     check:
       fortyTwo == e.BinaryExpression.left.Atom.value
       modulo == e.BinaryExpression.operator
-      fortyTwo == e.BinaryExpression.right.Atom.value   
+      fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses multiple multiply operators":
     let one = initToken(DecInteger, pos, "1")
@@ -190,6 +190,56 @@ suite "Product expression rule":
       three ==    e.BinaryExpression.left.BinaryExpression.right.Atom.value
       modulo ==   e.BinaryExpression.operator
       four ==     e.BinaryExpression.right.Atom.value
+
+suite "Sum expression rule":
+  test "Non-matching token calls product expression rule":
+    let one = initToken(DecInteger, pos, "1")
+    let operator = initToken(Multiply, pos)
+    let two = initToken(DecInteger, pos, "2")
+    var p = initParser(@[one, operator, two])
+    let e = p.sumExpression()
+
+    check:
+      one == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      two == e.BinaryExpression.right.Atom.value
+
+  test "Parses addition":
+    let operator = initToken(Plus, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.sumExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses subtraction":
+    let operator = initToken(Minus, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.sumExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses multiple sum operators":
+    let one = initToken(DecInteger, pos, "1")
+    let two = initToken(DecInteger, pos, "2")
+    let three = initToken(DecInteger, pos, "3")
+    let operator1 = initToken(Plus, pos)
+    let operator2 = initToken(Minus, pos)
+
+    var p = initParser(@[one, operator1, two, operator2, three])
+    let e = p.sumExpression()
+
+    check:
+      one ==        e.BinaryExpression.left.BinaryExpression.left.Atom.value
+      operator1 ==  e.BinaryExpression.left.BinaryExpression.operator
+      two ==        e.BinaryExpression.left.BinaryExpression.right.Atom.value
+      operator2 ==  e.BinaryExpression.operator
+      three ==      e.BinaryExpression.right.Atom.value
 
 suite "Expression rule":
   test "Parses Atom":
