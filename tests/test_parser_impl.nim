@@ -33,6 +33,20 @@ suite "Atom rule":
 
     check expected == a.value
 
+  test "Parses True token":
+    let expected = initToken(True, pos)
+    var p = initParser(@[expected])
+    let a = p.atom()
+
+    check expected == a.value
+
+  test "Parses False token":
+    let expected = initToken(False, pos)
+    var p = initParser(@[expected])
+    let a = p.atom()
+
+    check expected == a.value
+
   test "Raises exception on unexpected token":
     var p = initParser(@[initToken(Plus)])
     expect UnexpectedTokenError:

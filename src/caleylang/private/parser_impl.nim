@@ -11,7 +11,11 @@ type
 proc atom*(self: var Parser) : Atom =
   let token = self.current.get(initToken Invalid)
   case token.kind:
-    of DecInteger, OctInteger, HexInteger, BinInteger, Float, String, Identifier:
+    of DecInteger, OctInteger, HexInteger, BinInteger,
+       Float,
+       True, False,
+       String,
+       Identifier:
       result = newAtom(self.advance().get())
     else:
       raise newException(UnexpectedTokenError, "Found token: " & $token)
