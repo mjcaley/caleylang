@@ -4,25 +4,23 @@ import ../token
 
 type
   Start* = object
-    statements*: Statements
+    statements*: seq[Statement]
 
 
-  Statement* = object of RootObj
+  Statement* = ref object of RootObj
 
-  Statements* = seq[Statement]
-
-  ImportStatement* = object of Statement
+  ImportStatement* = ref object of Statement
     modules*: seq[Token]
 
-  ExpressionStatement* = object of Statement
+  ExpressionStatement* = ref object of Statement
     expression*: Expression
 
-  AssignmentStatement* = object of Statement
+  AssignmentStatement* = ref object of Statement
     left*: Expression
     operator*: Token
     right*: Expression
 
-  StructStatement* = object of Statement
+  StructStatement* = ref object of Statement
     members*: seq[Token]
 
   FunctionDecl* = object
@@ -30,9 +28,9 @@ type
     parameters*: seq[Token]
     returnType: Option[Token]
 
-  FunctionStatement* = object of Statement
+  FunctionStatement* = ref object of Statement
     decl*: FunctionDecl
-    statements*: Statements
+    statements*: seq[Statement]
 
 
   Expression* = ref object of RootObj
@@ -52,5 +50,19 @@ type
 
   Branch* = ref object
     condition*: Expression
-    then*: Statements
+    then*: seq[Statement]
     elseBranch*: Branch
+
+
+proc newExpressionStatement*(e: Expression) : ExpressionStatement =
+  result = new ExpressionStatement
+  result.expression = e
+
+proc newAtom*(t: Token) : Atom =
+  result = new Atom
+  result.value = t
+
+proc newBranch*(condition: Expression, then: seq[Statement], elseBranch: Branch) : Branch =
+  result.condition = condition
+  result.then = then
+  result.elseBranch = elseBranch

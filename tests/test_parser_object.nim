@@ -1,10 +1,14 @@
 import options, unittest
-import caleylang / [private/parser_object, token]
+import caleylang / [private/parser_object, token], caleylang/position
 
 
 suite "Default parser":
   setup:
-    var p = initParser(@[initToken(Indent), initToken(Dedent)])
+    let testInput = @[
+      initToken(DecInteger, initPosition(1, 2), "42"),
+      initToken(String, initPosition(4, 2), "Test string")
+    ]
+    var p = initParser(testInput)
     
     require:
       p.current.isSome
@@ -12,21 +16,20 @@ suite "Default parser":
 
   test "Parser instantiates":
     check:
-      p.current.get().kind == Indent
-      p.next.get().kind == Dedent
+      testInput[0] == p.current.get()
+      testInput[1] == p.next.get()
 
   test "advance returns previous token":
-    let current = p.current
     let result = p.advance()
 
-    check current == result
+    check testInput[0] == result.get()
 
   test "advance rolls tokens through":
-    let expectedCurrent = p.next
+    let expectedCurrent = testInput[1]
     let expectedNext = none Token
 
     discard p.advance()
 
     check:
-      expectedCurrent == p.current
+      expectedCurrent == p.current.get()
       expectedNext == p.next
