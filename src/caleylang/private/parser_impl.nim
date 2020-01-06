@@ -37,7 +37,7 @@ proc unaryExpression*(self: var Parser) : Expression =
   case token.kind:
     of Not, Plus, Minus:
       discard self.advance()
-      result = Expression newUnaryExpression(token, self.expression())
+      result = Expression newUnaryExpression(token, self.unaryExpression())
     else:
       result = self.atom()
 
