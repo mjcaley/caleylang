@@ -5,47 +5,59 @@ import caleylang/private/[parser_impl, parser_object, parse_tree], caleylang/[po
 const pos = initPosition()
 
 suite "Atom rule":
-  test "arses DecInteger token":
+  test "Parses DecInteger token":
     let expected = initToken(DecInteger, pos, "42")
     var p = initParser(@[expected])
     let a = p.atom()
 
-    check expected == a.value
+    check expected == a.Atom.value
 
   test "Parses OctInteger token":
     let expected = initToken(OctInteger, pos, "0o42")
     var p = initParser(@[expected])
     let a = p.atom()
 
-    check expected == a.value
+    check expected == a.Atom.value
 
   test "Parses BinInteger token":
     let expected = initToken(BinInteger, pos, "0b101")
     var p = initParser(@[expected])
     let a = p.atom()
 
-    check expected == a.value
+    check expected == a.Atom.value
 
   test "Parses HexInteger token":
     let expected = initToken(HexInteger, pos, "0x42")
     var p = initParser(@[expected])
     let a = p.atom()
 
-    check expected == a.value
+    check expected == a.Atom.value
 
   test "Parses True token":
     let expected = initToken(True, pos)
     var p = initParser(@[expected])
     let a = p.atom()
 
-    check expected == a.value
+    check expected == a.Atom.value
 
   test "Parses False token":
     let expected = initToken(False, pos)
     var p = initParser(@[expected])
     let a = p.atom()
 
-    check expected == a.value
+    check expected == a.Atom.value
+
+  test "Parses parentheses tokens":
+    let expected = initToken(DecInteger, pos, "42")
+    var p = initParser(@[initToken(LeftParen), expected, initToken(RightParen)])
+    let a = p.atom()
+
+    check expected == a.Atom.value
+
+  test "Raises exception on unexpected token between parentheses":
+    var p = initParser(@[initToken LeftParen, initToken Plus, initToken RightParen])
+    expect UnexpectedTokenError:
+      discard p.atom()
 
   test "Raises exception on unexpected token":
     var p = initParser(@[initToken(Plus)])

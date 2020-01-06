@@ -1,6 +1,6 @@
 import options
 import ../token
-import parser_object, parse_tree
+import parser_object, parser_utility, parse_tree
 
 
 type
@@ -8,8 +8,13 @@ type
   UnexpectedTokenError* = object of ParsingError
 
 
-proc atom*(self: var Parser) : Atom =
-  let token = self.current.get(initToken Invalid)
+proc tokenOrInvalid(self: Option[Token]) : Token =
+  result = self.get(initToken Invalid)
+
+proc expression*(self: var Parser) : Expression
+
+proc atom*(self: var Parser) : Expression =
+  let token = self.current.tokenOrInvalid
   case token.kind:
     of DecInteger, OctInteger, HexInteger, BinInteger,
        Float,
@@ -17,6 +22,13 @@ proc atom*(self: var Parser) : Atom =
        String,
        Identifier:
       result = newAtom(self.advance().get())
+    of LeftParen:
+      discard self.advance()
+      result = self.expression()
+      if self.current.match(RightParen):
+        discard self.advance()
+      else:
+        raise newException(UnexpectedTokenError, "Found token: " & $self.current.tokenOrInvalid)
     else:
       raise newException(UnexpectedTokenError, "Found token: " & $token)
 
