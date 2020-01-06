@@ -10,4 +10,9 @@ test "match successful":
 test "match failed":
   let testInput = some initToken(Indent)
 
-  check not testINput.match(Dedent)
+  check not testInput.match(Dedent)
+
+test "match multiple tokens":
+  let testInput = some initToken(Indent)
+
+  check testInput.match(Indent, Dedent)
