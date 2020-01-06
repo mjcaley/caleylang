@@ -241,6 +241,52 @@ suite "Sum expression rule":
       operator2 ==  e.BinaryExpression.operator
       three ==      e.BinaryExpression.right.Atom.value
 
+suite "And expression rule":
+  test "Non-matching token calls sum expression rule":
+    let one = initToken(DecInteger, pos, "1")
+    let operator = initToken(Plus, pos)
+    let two = initToken(DecInteger, pos, "2")
+    var p = initParser(@[one, operator, two])
+    let e = p.andExpression()
+
+    check:
+      one == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      two == e.BinaryExpression.right.Atom.value
+
+  test "Parses and":
+    let operator = initToken(And, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.andExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+suite "Or expression rule":
+  test "Non-matching token calls and expression rule":
+    let one = initToken(DecInteger, pos, "1")
+    let operator = initToken(And, pos)
+    let two = initToken(DecInteger, pos, "2")
+    var p = initParser(@[one, operator, two])
+    let e = p.orExpression()
+
+    check:
+      one == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      two == e.BinaryExpression.right.Atom.value
+
+  test "Parses or":
+    let operator = initToken(Or, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.orExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
 suite "Expression rule":
   test "Parses Atom":
     var p = initParser(@[fortyTwo])

@@ -68,8 +68,26 @@ proc sumExpression*(self: var Parser) : Expression =
     let expression = newBinaryExpression(result, right, operator)
     result = expression
 
-proc expression*(self: var Parser) : Expression =
+proc andExpression*(self: var Parser) : Expression =
   result = self.sumExpression()
+
+  while self.current.match(And):
+    let operator = self.advance().get()
+    let right = self.sumExpression()
+    let expression = newBinaryExpression(result, right, operator)
+    result = expression
+
+proc orExpression*(self: var Parser) : Expression =
+  result = self.andExpression()
+
+  while self.current.match(Or):
+    let operator = self.advance().get()
+    let right = self.andExpression()
+    let expression = newBinaryExpression(result, right, operator)
+    result = expression
+
+proc expression*(self: var Parser) : Expression =
+  result = self.orExpression()
 
 proc statement*(self: var Parser) : Statement =
   result = Statement newExpressionStatement(self.expression())
