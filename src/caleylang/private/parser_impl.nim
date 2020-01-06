@@ -86,8 +86,26 @@ proc orExpression*(self: var Parser) : Expression =
     let expression = newBinaryExpression(result, right, operator)
     result = expression
 
-proc expression*(self: var Parser) : Expression =
+proc compareExpression*(self: var Parser) : Expression =
   result = self.orExpression()
+
+  while self.current.match(Equal, NotEqual, LessThan, LessThanOrEqual, GreaterThan, GreaterThanOrEqual):
+    let operator = self.advance.get()
+    let right = self.orExpression()
+    let expression = newBinaryExpression(result, right, operator)
+    result = expression
+
+proc assignmentExpression*(self: var Parser) : Expression =
+  result = self.compareExpression()
+
+  while self.current.match(Assign, PlusAssign, MinusAssign, MultiplyAssign, DivideAssign, ModuloAssign, ExponentAssign):
+    let operator = self.advance.get()
+    let right = self.compareExpression()
+    let expression = newBinaryExpression(result, right, operator)
+    result = expression
+
+proc expression*(self: var Parser) : Expression =
+  result = self.assignmentExpression()
 
 proc statement*(self: var Parser) : Statement =
   result = Statement newExpressionStatement(self.expression())

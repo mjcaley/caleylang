@@ -287,6 +287,152 @@ suite "Or expression rule":
       operator == e.BinaryExpression.operator
       fortyTwo == e.BinaryExpression.right.Atom.value
 
+suite "Compare expression rule":
+  test "Non-matching token calls or expression rule":
+    let one = initToken(DecInteger, pos, "1")
+    let operator = initToken(Or, pos)
+    let two = initToken(DecInteger, pos, "2")
+    var p = initParser(@[one, operator, two])
+    let e = p.compareExpression()
+
+    check:
+      one == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      two == e.BinaryExpression.right.Atom.value
+
+  test "Parses equal":
+    let operator = initToken(Equal, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.compareExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses not equal":
+    let operator = initToken(NotEqual, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.compareExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses less than":
+    let operator = initToken(LessThan, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.compareExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses greater than":
+    let operator = initToken(GreaterThan, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.compareExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses less than or equal":
+    let operator = initToken(LessThanOrEqual, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.compareExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses greater than or equal":
+    let operator = initToken(GreaterThanOrEqual, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.compareExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+suite "Assignment expression rule":
+  test "Non-matching token calls compare expression rule":
+    let one = initToken(DecInteger, pos, "1")
+    let operator = initToken(Equal, pos)
+    let two = initToken(DecInteger, pos, "2")
+    var p = initParser(@[one, operator, two])
+    let e = p.assignmentExpression()
+
+    check:
+      one == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      two == e.BinaryExpression.right.Atom.value
+
+  test "Parses assign":
+    let operator = initToken(Assign, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.assignmentExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses assign addition":
+    let operator = initToken(PlusAssign, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.assignmentExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses assign subtraction":
+    let operator = initToken(MinusAssign, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.assignmentExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses assign multiplication":
+    let operator = initToken(MultiplyAssign, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.assignmentExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses assign division":
+    let operator = initToken(DivideAssign, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.assignmentExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
+  test "Parses assign exponent":
+    let operator = initToken(ExponentAssign, pos)
+    var p = initParser(@[fortyTwo, operator, fortyTwo])
+    let e = p.assignmentExpression()
+
+    check:
+      fortyTwo == e.BinaryExpression.left.Atom.value
+      operator == e.BinaryExpression.operator
+      fortyTwo == e.BinaryExpression.right.Atom.value
+
 suite "Expression rule":
   test "Parses Atom":
     var p = initParser(@[fortyTwo])
