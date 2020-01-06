@@ -58,6 +58,11 @@ proc newExpressionStatement*(e: Expression) : ExpressionStatement =
   result = new ExpressionStatement
   result.expression = e
 
+proc newUnaryExpression*(operator: Token, operand: Expression) : UnaryExpression =
+  result = new UnaryExpression
+  result.operator = operator
+  result.operand = operand
+
 proc newAtom*(t: Token) : Atom =
   result = new Atom
   result.value = t

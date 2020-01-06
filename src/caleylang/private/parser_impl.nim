@@ -32,6 +32,15 @@ proc atom*(self: var Parser) : Expression =
     else:
       raise newException(UnexpectedTokenError, "Found token: " & $token)
 
+proc unaryExpression*(self: var Parser) : Expression =
+  let token = self.current.tokenOrInvalid
+  case token.kind:
+    of Not, Plus, Minus:
+      discard self.advance()
+      result = Expression newUnaryExpression(token, self.expression())
+    else:
+      result = self.atom()
+
 proc expression*(self: var Parser) : Expression =
   result = self.atom()
 

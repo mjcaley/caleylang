@@ -58,6 +58,40 @@ suite "Atom rule":
     expect UnexpectedTokenError:
       discard p.atom()
 
+suite "Unary expression rule":
+  test "Non-matching token calls atom rule":
+    var p = initParser(@[fortyTwo])
+    let e = p.unaryExpression()
+
+    check fortyTwo == e.Atom.value
+
+  test "Parses Not token":
+    let notToken = initToken(Not, pos)
+    var p = initParser(@[notToken, fortyTwo])
+    let e = p.unaryExpression()
+
+    check:
+      Not == e.UnaryExpression.operator.kind
+      fortyTwo == e.UnaryExpression.operand.Atom.value
+
+  test "Parses Plus token":
+    let plusToken = initToken(Plus, pos)
+    var p = initParser(@[plusToken, fortyTwo])
+    let e = p.unaryExpression()
+
+    check:
+      Plus == e.UnaryExpression.operator.kind
+      fortyTwo == e.UnaryExpression.operand.Atom.value
+
+  test "Parses Minus token":
+    let minusToken = initToken(Minus, pos)
+    var p = initParser(@[minusToken, fortyTwo])
+    let e = p.unaryExpression()
+
+    check:
+      Minus == e.UnaryExpression.operator.kind
+      fortyTwo == e.UnaryExpression.operand.Atom.value
+
 suite "Expression rule":
   test "Parses Atom":
     var p = initParser(@[fortyTwo])
