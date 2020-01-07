@@ -561,7 +561,7 @@ suite "Statement rule":
 
 suite "Statements rule":
   test "Parses one token":
-    var p = initParser(@[fortyTwo, initToken(Newline)])
+    var p = initParser(@[initToken(Indent), fortyTwo, initToken(Newline), initToken(Dedent)])
     let statements = p.statements()
 
     check fortyTwo == statements[0].ExpressionStatement.expression.Atom.value
@@ -569,7 +569,7 @@ suite "Statements rule":
   test "Parses multiple tokens":
     let expected1 = fortyTwo
     let expected2 = initToken(String, pos, "Test string")
-    var p = initParser(@[expected1, initToken(Newline), expected2, initToken(Newline)])
+    var p = initParser(@[initToken(Indent), expected1, initToken(Newline), expected2, initToken(Newline), initToken(Dedent)])
     let statements = p.statements()
 
     check:
@@ -578,7 +578,7 @@ suite "Statements rule":
 
 suite "Start rule":
   test "Start":
-    var p = initParser(@[fortyTwo, initToken(Newline)])
+    var p = initParser(@[initToken(Indent), fortyTwo, initToken(Newline), initToken(Dedent)])
     let start = p.start()
 
     check fortyTwo == start.statements[0].ExpressionStatement.expression.Atom.value

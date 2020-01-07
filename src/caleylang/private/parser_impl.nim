@@ -156,8 +156,11 @@ proc statement*(self: var Parser) : Statement =
       raise newException(UnexpectedTokenError, "Expected newline")
 
 proc statements*(self: var Parser) : seq[Statement] =
-  while self.current.get(initToken(EndOfFile)).kind != EndOfFile:
+  if self.current.match(Indent):
+    discard self.advance()
+  while self.current.tokenOrInvalid.kind != Dedent:
     result.add(self.statement)
+  discard self.advance()
 
 proc start*(self: var Parser) : Start =
   result.statements = self.statements()
