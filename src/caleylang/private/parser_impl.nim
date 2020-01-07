@@ -32,6 +32,43 @@ proc atom*(self: var Parser) : Expression =
     else:
       raise newException(UnexpectedTokenError, "Found token: " & $token)
 
+proc postfixExpression*(self: var Parser) : Expression =
+  result = self.atom()
+
+  while self.current.match(Dot, LeftSquare, LeftParen):
+    let token = self.current.tokenOrInvalid
+    case token.kind:
+      of Dot:
+        discard self.advance()
+        if self.current.match(Identifier):
+          result = newFieldAccessExpression(result, self.advance().get())
+        else:
+          raise newException(UnexpectedTokenError, "Expected an identifier token")
+      of LeftSquare:
+        discard self.advance()
+        result = newSubscriptExpression(result, self.expression())
+        if self.current.match(RightSquare):
+          discard self.advance()
+        else:
+          raise newException(UnexpectedTokenError, "Expected ending right square bracket")
+      of LeftParen:
+        discard self.advance()
+
+        var parameters = newSeq[Expression]()
+        while not self.current.match(RightParen):
+          parameters.add(self.expression())
+          if self.current.match(Comma):
+            discard self.advance()
+        
+        if self.current.match(RightParen):
+          discard self.advance()
+        else:
+          raise newException(UnexpectedTokenError, "Expected matching right parentheses token")
+
+        result = newCallExpression(result, parameters)
+      else:
+        discard
+
 proc unaryExpression*(self: var Parser) : Expression =
   let token = self.current.tokenOrInvalid
   case token.kind:
@@ -39,7 +76,7 @@ proc unaryExpression*(self: var Parser) : Expression =
       discard self.advance()
       result = Expression newUnaryExpression(token, self.unaryExpression())
     else:
-      result = self.atom()
+      result = self.postfixExpression()
 
 proc exponentExpression*(self: var Parser) : Expression =
   result = self.unaryExpression()

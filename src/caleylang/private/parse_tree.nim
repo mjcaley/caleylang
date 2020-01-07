@@ -44,6 +44,18 @@ type
     operator*: Token
     operand*: Expression
 
+  CallExpression* = ref object of Expression
+    operand*: Expression
+    parameters*: seq[Expression]
+
+  FieldAccessExpression* = ref object of Expression
+    operand*: Expression
+    field*: Token
+
+  SubscriptExpression* = ref object of Expression
+    operand*: Expression
+    subscript*: Expression
+
   Atom* = ref object of Expression
     value*: Token
 
@@ -68,6 +80,21 @@ proc newBinaryExpression*(left, right: Expression, operator: Token) : BinaryExpr
   result.left = left
   result.right = right
   result.operator = operator
+
+proc newCallExpression*(operand: Expression, parameters: seq[Expression]) : CallExpression =
+  result = new CallExpression
+  result.operand = operand
+  result.parameters = parameters
+
+proc newFieldAccessExpression*(operand: Expression, field: Token) : FieldAccessExpression =
+  result = new FieldAccessExpression
+  result.operand = operand
+  result.field = field
+
+proc newSubscriptExpression*(operand, subscript: Expression) : SubscriptExpression =
+  result = new SubscriptExpression
+  result.operand = operand
+  result.subscript = subscript
 
 proc newAtom*(t: Token) : Atom =
   result = new Atom

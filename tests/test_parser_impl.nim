@@ -59,7 +59,7 @@ suite "Atom rule":
       discard p.atom()
 
 suite "Unary expression rule":
-  test "Non-matching token calls atom rule":
+  test "Non-matching token calls postfix expression rule":
     var p = initParser(@[fortyTwo])
     let e = p.unaryExpression()
 
@@ -432,6 +432,112 @@ suite "Assignment expression rule":
       fortyTwo == e.BinaryExpression.left.Atom.value
       operator == e.BinaryExpression.operator
       fortyTwo == e.BinaryExpression.right.Atom.value
+
+suite "Postfix expression rule":
+  test "Non-matching token calls atom expression rule":
+    var p = initParser(@[fortyTwo])
+    let e = p.postfixExpression()
+
+    check fortyTwo == e.Atom.value
+
+  test "Parses field access":
+    let one = initToken(DecInteger, pos, "1")
+    let field = initToken(Identifier, pos, "field")
+    var p = initParser(@[one, initToken(Dot, pos), field])
+    let e = p.postfixExpression()
+
+    check:
+      one == e.FieldAccessExpression.operand.Atom.value
+      field == e.FieldAccessExpression.field
+
+  test "Field access without Identifier token raises exception":
+    let one = initToken(Identifier, pos, "one")
+    var p = initParser(@[one, initToken(Dot), fortyTwo])
+    
+    expect UnexpectedTokenError:
+      discard p.postfixExpression()
+    
+  test "Parses empty call":
+    let one = initToken(DecInteger, pos, "1")
+    var p = initParser(@[one, initToken(LeftParen), initToken(RightParen)])
+    let e = p.postfixExpression()
+
+    check:
+      one == e.CallExpression.operand.Atom.value
+      0 == len(e.CallExpression.parameters)
+
+  test "Parses call with one parameter":
+    let one = initToken(DecInteger, pos, "1")
+    var p = initParser(@[fortyTwo, initToken(LeftParen), one, initToken(RightParen)])
+    let e = p.postfixExpression()
+
+    check:
+      fortyTwo == e.CallExpression.operand.Atom.value
+      1 == len(e.CallExpression.parameters)
+      one == e.CallExpression.parameters[0].Atom.value
+
+  test "Parses call with multiple parameters":
+    let one = initToken(DecInteger, pos, "1")
+    let two = initToken(DecInteger, pos, "2")
+    var p = initParser(@[fortyTwo, initToken(LeftParen), one, initToken(Comma), two, initToken(RightParen)])
+    let e = p.postfixExpression()
+
+    check:
+      fortyTwo == e.CallExpression.operand.Atom.value
+      2 == len(e.CallExpression.parameters)
+      one == e.CallExpression.parameters[0].Atom.value
+      two == e.CallExpression.parameters[1].Atom.value
+
+  test "Call without matching right parentheses raises exception":
+    let one = initToken(Identifier, pos, "one")
+    var p = initParser(@[one, initToken(LeftParen), one])
+
+    expect UnexpectedTokenError:
+      discard p.postfixExpression()
+
+  test "Parses subscript":
+    let one = initToken(DecInteger, pos, "1")
+    var p = initParser(@[fortyTwo, initToken(LeftSquare), one, initToken(RightSquare)])
+    let e = p.postfixExpression()
+
+    check:
+      fortyTwo == e.SubscriptExpression.operand.Atom.value
+      one == e.SubscriptExpression.subscript.Atom.value
+
+  test "Subscript raises exception when there is no matching right square bracket":
+    let one = initToken(Identifier, pos, "one")
+    var p = initParser(@[one, initToken(LeftSquare), fortyTwo])
+    
+    expect UnexpectedTokenError:
+      discard p.postfixExpression()
+
+  test "Parses multiple postfix expressions":
+    let one = initToken(DecInteger, pos, "1")
+    let two = initToken(Identifier, pos, "two")
+    let three = initToken(DecInteger, pos, "3")
+    var p = initParser(@[fortyTwo, initToken(LeftParen), one, initToken(RightParen), initToken(Dot), two, initToken(LeftSquare), three, initToken(RightSquare)])
+    let e = p.postfixExpression()
+
+    check:
+      # Expected tree:
+      # [SubscriptExpression]
+      #   subscript
+      #     Atom(three)
+      #   operand
+      #     [FieldAccessExpression]
+      #       field
+      #         Atom(two)
+      #       operand
+      #         [CallExpression]
+      #           operand
+      #             Atom(fortyTwo)
+      #           parameters
+      #             [ Atom(one) ]
+      three == e.SubscriptExpression.subscript.Atom.value
+      two == e.SubscriptExpression.operand.FieldAccessExpression.field
+      1 == len(e.SubscriptExpression.operand.FieldAccessExpression.operand.CallExpression.parameters)
+      one == e.SubscriptExpression.operand.FieldAccessExpression.operand.CallExpression.parameters[0].Atom.value
+      fortyTwo == e.SubscriptExpression.operand.FieldAccessExpression.operand.CallExpression.operand.Atom.value
 
 suite "Expression rule":
   test "Parses Atom":
