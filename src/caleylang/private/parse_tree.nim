@@ -66,6 +66,10 @@ type
     elseBranch*: Branch
 
 
+proc newImportStatement*(modules: seq[Token]) : ImportStatement =
+  result = new ImportStatement
+  result.modules = modules
+
 proc newExpressionStatement*(e: Expression) : ExpressionStatement =
   result = new ExpressionStatement
   result.expression = e

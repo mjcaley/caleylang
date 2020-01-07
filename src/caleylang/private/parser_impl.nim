@@ -144,8 +144,25 @@ proc assignmentExpression*(self: var Parser) : Expression =
 proc expression*(self: var Parser) : Expression =
   result = self.assignmentExpression()
 
+proc importStatement*(self: var Parser) : Statement =
+  discard self.advance()
+
+  var modules = newSeq[Token]()
+  if self.current.match(Identifier):
+    modules.add(self.advance().get())
+  
+  while self.current.match(Comma) and self.next.match(Identifier):
+    discard self.advance()
+    modules.add(self.advance().get())
+  
+  result = newImportStatement(modules)
+
 proc statement*(self: var Parser) : Statement =
-  result = Statement newExpressionStatement(self.expression())
+  case self.current.tokenOrInvalid.kind:
+    of Import:
+      result = self.importStatement()
+    else:
+      result = newExpressionStatement(self.expression())
 
   case self.current.tokenOrInvalid.kind:
     of Newline:

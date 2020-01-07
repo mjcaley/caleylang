@@ -559,6 +559,26 @@ suite "Statement rule":
 
     check fortyTwo == statement.ExpressionStatement.expression.Atom.value
 
+  test "Parses ImportStatement of one module":
+    let one = initToken(Identifier, pos, "one")
+    var p = initParser(@[initToken(Import), one, initToken(Newline)])
+    let s = p.statement()
+
+    check:
+      1 == len(s.ImportStatement.modules)
+      one == s.ImportStatement.modules[0]
+
+  test "Parses ImportStatement of multiple modules":
+    let one = initToken(Identifier, pos, "one")
+    let two = initToken(Identifier, pos, "two")
+    var p = initParser(@[initToken(Import), one, initToken(Comma), two, initToken(Newline)])
+    let s = p.statement()
+
+    check:
+      2 == len(s.ImportStatement.modules)
+      one == s.ImportStatement.modules[0]
+      two == s.ImportStatement.modules[1]
+
 suite "Statements rule":
   test "Parses one token":
     var p = initParser(@[initToken(Indent), fortyTwo, initToken(Newline), initToken(Dedent)])
