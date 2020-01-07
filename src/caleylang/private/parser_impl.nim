@@ -158,12 +158,27 @@ proc statement*(self: var Parser) : Statement =
 proc statements*(self: var Parser) : seq[Statement] =
   if self.current.match(Indent):
     discard self.advance()
-  while self.current.tokenOrInvalid.kind != Dedent:
-    result.add(self.statement)
-  discard self.advance()
+  else:
+    raise newException(UnexpectedTokenError, "Expected indent")
+
+  while true:
+    case self.current.tokenOrInvalid.kind:
+      of Dedent:
+        discard self.advance()
+        break
+      of Invalid, EndOfFile:
+        raise newException(UnexpectedTokenError, "Expected dedent")
+      else:
+        result.add(self.statement())
 
 proc start*(self: var Parser) : Start =
-  result.statements = self.statements()
+  if not self.current.match(EndOfFile):
+    result.statements = self.statements()
+
+  if self.current.match(EndOfFile):
+    discard self.advance()
+  else:
+    raise newException(UnexpectedTokenError, "Expected end of file")
 
 proc parse*(tokens: seq[Token]) : Start =
   var parser = initParser(tokens)

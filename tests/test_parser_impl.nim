@@ -576,9 +576,27 @@ suite "Statements rule":
       expected1 == statements[0].ExpressionStatement.expression.Atom.value
       expected2 == statements[1].ExpressionStatement.expression.Atom.value
 
+  test "Raises exception when Indent not found":
+    var p = initParser(@[fortyTwo, initToken(Dedent)])
+
+    expect UnexpectedTokenError:
+      discard p.statements()
+
+  test "Raises exception when EndOfFile instead of Dedent not found":
+    var p = initParser(@[initToken(Indent), fortyTwo, initToken(Newline), initToken(EndOfFile)])
+
+    expect UnexpectedTokenError:
+      discard p.statements()
+
 suite "Start rule":
-  test "Start":
-    var p = initParser(@[initToken(Indent), fortyTwo, initToken(Newline), initToken(Dedent)])
+  test "Start parses a statement":
+    var p = initParser(@[initToken(Indent), fortyTwo, initToken(Newline), initToken(Dedent), initToken(EndOfFile)])
     let start = p.start()
 
     check fortyTwo == start.statements[0].ExpressionStatement.expression.Atom.value
+
+  test "Raises exception when EndOfFile token not present":
+    var p = initParser(@[initToken(Indent), fortyTwo, initToken(Dedent)])
+
+    expect UnexpectedTokenError:
+      discard p.start()
