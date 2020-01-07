@@ -540,22 +540,28 @@ suite "Postfix expression rule":
       fortyTwo == e.SubscriptExpression.operand.FieldAccessExpression.operand.CallExpression.operand.Atom.value
 
 suite "Expression rule":
-  test "Parses Atom":
+  test "Parses expression":
     var p = initParser(@[fortyTwo])
-    let e = Atom(p.expression())  
+    let e = p.expression()
 
-    check fortyTwo == e.value
+    check fortyTwo == e.Atom.value
 
 suite "Statement rule":
-  test "Parses ExpressionStatement":
-    var p = initParser(@[fortyTwo])
+  test "Parses ExpressionStatement ending in newline":
+    var p = initParser(@[fortyTwo, initToken(Newline)])
+    let statement = p.statement()
+
+    check fortyTwo == statement.ExpressionStatement.expression.Atom.value
+
+  test "Parses ExpresionStatement ending in dedent":
+    var p = initParser(@[fortyTwo, initToken(Dedent)])
     let statement = p.statement()
 
     check fortyTwo == statement.ExpressionStatement.expression.Atom.value
 
 suite "Statements rule":
   test "Parses one token":
-    var p = initParser(@[fortyTwo])
+    var p = initParser(@[fortyTwo, initToken(Newline)])
     let statements = p.statements()
 
     check fortyTwo == statements[0].ExpressionStatement.expression.Atom.value
@@ -563,7 +569,7 @@ suite "Statements rule":
   test "Parses multiple tokens":
     let expected1 = fortyTwo
     let expected2 = initToken(String, pos, "Test string")
-    var p = initParser(@[expected1, expected2])
+    var p = initParser(@[expected1, initToken(Newline), expected2, initToken(Newline)])
     let statements = p.statements()
 
     check:
@@ -572,7 +578,7 @@ suite "Statements rule":
 
 suite "Start rule":
   test "Start":
-    var p = initParser(@[fortyTwo])
+    var p = initParser(@[fortyTwo, initToken(Newline)])
     let start = p.start()
 
     check fortyTwo == start.statements[0].ExpressionStatement.expression.Atom.value

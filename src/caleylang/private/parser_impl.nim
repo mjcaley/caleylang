@@ -147,6 +147,14 @@ proc expression*(self: var Parser) : Expression =
 proc statement*(self: var Parser) : Statement =
   result = Statement newExpressionStatement(self.expression())
 
+  case self.current.tokenOrInvalid.kind:
+    of Newline:
+      discard self.advance
+    of Dedent:
+      discard
+    else:
+      raise newException(UnexpectedTokenError, "Expected newline")
+
 proc statements*(self: var Parser) : seq[Statement] =
   while self.current.get(initToken(EndOfFile)).kind != EndOfFile:
     result.add(self.statement)
