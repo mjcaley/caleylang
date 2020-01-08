@@ -9,23 +9,23 @@ type
 
 
 proc tokenOrInvalid(self: Option[Token]) : Token =
-  result = self.get(initToken Invalid)
+  result = self.get(initToken tkInvalid)
 
 proc expression*(self: var Parser) : Expression
 
 proc atom*(self: var Parser) : Expression =
   let token = self.current.tokenOrInvalid
   case token.kind:
-    of DecInteger, OctInteger, HexInteger, BinInteger,
-       Float,
-       True, False,
-       String,
-       Identifier:
+    of tkDecInteger, tkOctInteger, tkHexInteger, tkBinInteger,
+       tkFloat,
+       tkTrue, tkFalse,
+       tkString,
+       tkIdentifier:
       result = newAtom(self.advance().get())
-    of LeftParen:
+    of tkLeftParen:
       discard self.advance()
       result = self.expression()
-      if self.current.match(RightParen):
+      if self.current.match(tkRightParen):
         discard self.advance()
       else:
         raise newException(UnexpectedTokenError, "Found token: " & $self.current.tokenOrInvalid)
@@ -35,32 +35,32 @@ proc atom*(self: var Parser) : Expression =
 proc postfixExpression*(self: var Parser) : Expression =
   result = self.atom()
 
-  while self.current.match(Dot, LeftSquare, LeftParen):
+  while self.current.match(tkDot, tkLeftSquare, tkLeftParen):
     let token = self.current.tokenOrInvalid
     case token.kind:
-      of Dot:
+      of tkDot:
         discard self.advance()
-        if self.current.match(Identifier):
+        if self.current.match(tkIdentifier):
           result = newFieldAccessExpression(result, self.advance().get())
         else:
           raise newException(UnexpectedTokenError, "Expected an identifier token")
-      of LeftSquare:
+      of tkLeftSquare:
         discard self.advance()
         result = newSubscriptExpression(result, self.expression())
-        if self.current.match(RightSquare):
+        if self.current.match(tkRightSquare):
           discard self.advance()
         else:
           raise newException(UnexpectedTokenError, "Expected ending right square bracket")
-      of LeftParen:
+      of tkLeftParen:
         discard self.advance()
 
         var parameters = newSeq[Expression]()
-        while not self.current.match(RightParen):
+        while not self.current.match(tkRightParen):
           parameters.add(self.expression())
-          if self.current.match(Comma):
+          if self.current.match(tkComma):
             discard self.advance()
         
-        if self.current.match(RightParen):
+        if self.current.match(tkRightParen):
           discard self.advance()
         else:
           raise newException(UnexpectedTokenError, "Expected matching right parentheses token")
@@ -72,7 +72,7 @@ proc postfixExpression*(self: var Parser) : Expression =
 proc unaryExpression*(self: var Parser) : Expression =
   let token = self.current.tokenOrInvalid
   case token.kind:
-    of Not, Plus, Minus:
+    of tkNot, tkPlus, tkMinus:
       discard self.advance()
       result = Expression newUnaryExpression(token, self.unaryExpression())
     else:
@@ -81,7 +81,7 @@ proc unaryExpression*(self: var Parser) : Expression =
 proc exponentExpression*(self: var Parser) : Expression =
   result = self.unaryExpression()
 
-  while self.current.match(Exponent):
+  while self.current.match(tkExponent):
     let operator = self.advance().get()
     let right = self.unaryExpression()
     let expression = newBinaryExpression(result, right, operator)
@@ -90,7 +90,7 @@ proc exponentExpression*(self: var Parser) : Expression =
 proc productExpression*(self: var Parser) : Expression =
   result = self.exponentExpression()
 
-  while self.current.match(Multiply, Divide, Modulo):
+  while self.current.match(tkMultiply, tkDivide, tkModulo):
     let operator = self.advance().get()
     let right = self.exponentExpression()
     let expression = newBinaryExpression(result, right, operator)
@@ -99,7 +99,7 @@ proc productExpression*(self: var Parser) : Expression =
 proc sumExpression*(self: var Parser) : Expression =
   result = self.productExpression()
 
-  while self.current.match(Plus, Minus):
+  while self.current.match(tkPlus, tkMinus):
     let operator = self.advance().get()
     let right = self.productExpression()
     let expression = newBinaryExpression(result, right, operator)
@@ -108,7 +108,7 @@ proc sumExpression*(self: var Parser) : Expression =
 proc andExpression*(self: var Parser) : Expression =
   result = self.sumExpression()
 
-  while self.current.match(And):
+  while self.current.match(tkAnd):
     let operator = self.advance().get()
     let right = self.sumExpression()
     let expression = newBinaryExpression(result, right, operator)
@@ -117,7 +117,7 @@ proc andExpression*(self: var Parser) : Expression =
 proc orExpression*(self: var Parser) : Expression =
   result = self.andExpression()
 
-  while self.current.match(Or):
+  while self.current.match(tkOr):
     let operator = self.advance().get()
     let right = self.andExpression()
     let expression = newBinaryExpression(result, right, operator)
@@ -126,7 +126,7 @@ proc orExpression*(self: var Parser) : Expression =
 proc compareExpression*(self: var Parser) : Expression =
   result = self.orExpression()
 
-  while self.current.match(Equal, NotEqual, LessThan, LessThanOrEqual, GreaterThan, GreaterThanOrEqual):
+  while self.current.match(tkEqual, tkNotEqual, tkLessThan, tkLessThanOrEqual, tkGreaterThan, tkGreaterThanOrEqual):
     let operator = self.advance.get()
     let right = self.orExpression()
     let expression = newBinaryExpression(result, right, operator)
@@ -135,7 +135,7 @@ proc compareExpression*(self: var Parser) : Expression =
 proc assignmentExpression*(self: var Parser) : Expression =
   result = self.compareExpression()
 
-  while self.current.match(Assign, PlusAssign, MinusAssign, MultiplyAssign, DivideAssign, ModuloAssign, ExponentAssign):
+  while self.current.match(tkAssign, tkPlusAssign, tkMinusAssign, tkMultiplyAssign, tkDivideAssign, tkModuloAssign, tkExponentAssign):
     let operator = self.advance.get()
     let right = self.compareExpression()
     let expression = newBinaryExpression(result, right, operator)
@@ -148,10 +148,10 @@ proc importStatement*(self: var Parser) : Statement =
   discard self.advance()
 
   var modules = newSeq[Token]()
-  if self.current.match(Identifier):
+  if self.current.match(tkIdentifier):
     modules.add(self.advance().get())
   
-  while self.current.match(Comma) and self.next.match(Identifier):
+  while self.current.match(tkComma) and self.next.match(tkIdentifier):
     discard self.advance()
     modules.add(self.advance().get())
   
@@ -159,40 +159,40 @@ proc importStatement*(self: var Parser) : Statement =
 
 proc statement*(self: var Parser) : Statement =
   case self.current.tokenOrInvalid.kind:
-    of Import:
+    of tkImport:
       result = self.importStatement()
     else:
       result = newExpressionStatement(self.expression())
 
   case self.current.tokenOrInvalid.kind:
-    of Newline:
+    of tkNewline:
       discard self.advance
-    of Dedent:
+    of tkDedent:
       discard
     else:
       raise newException(UnexpectedTokenError, "Expected newline")
 
 proc statements*(self: var Parser) : seq[Statement] =
-  if self.current.match(Indent):
+  if self.current.match(tkIndent):
     discard self.advance()
   else:
     raise newException(UnexpectedTokenError, "Expected indent")
 
   while true:
     case self.current.tokenOrInvalid.kind:
-      of Dedent:
+      of tkDedent:
         discard self.advance()
         break
-      of Invalid, EndOfFile:
+      of tkInvalid, tkEndOfFile:
         raise newException(UnexpectedTokenError, "Expected dedent")
       else:
         result.add(self.statement())
 
 proc start*(self: var Parser) : Start =
-  if not self.current.match(EndOfFile):
+  if not self.current.match(tkEndOfFile):
     result.statements = self.statements()
 
-  if self.current.match(EndOfFile):
+  if self.current.match(tkEndOfFile):
     discard self.advance()
   else:
     raise newException(UnexpectedTokenError, "Expected end of file")

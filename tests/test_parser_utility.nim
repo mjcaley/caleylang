@@ -3,16 +3,16 @@ import caleylang/private/parser_utility, caleylang/token
 
 
 test "match successful":
-  let testInput = some initToken(Indent)
+  let testInput = some initToken(tkIndent)
 
-  check testInput.match(Indent)
+  check testInput.match(tkIndent)
 
 test "match failed":
-  let testInput = some initToken(Indent)
+  let testInput = some initToken(tkIndent)
 
-  check not testInput.match(Dedent)
+  check not testInput.match(tkDedent)
 
 test "match multiple tokens":
-  let testInput = some initToken(Indent)
+  let testInput = some initToken(tkIndent)
 
-  check testInput.match(Indent, Dedent)
+  check testInput.match(tkIndent, tkDedent)

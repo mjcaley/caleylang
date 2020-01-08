@@ -3,7 +3,7 @@ import caleylang/private/[parser_impl, parser_object, parse_tree], caleylang/[po
 
 
 const pos = initPosition()
-const fortyTwo = initToken(DecInteger, pos, "42")
+const fortyTwo = initToken(tkDecInteger, pos, "42")
 
 suite "Atom rule":
   test "Parses DecInteger token":
@@ -43,18 +43,18 @@ suite "Atom rule":
     check fortyTwo == a.Atom.value
 
   test "Parses parentheses tokens":
-    var p = initParser(@[initToken(LeftParen), fortyTwo, initToken(RightParen)])
+    var p = initParser(@[initToken(tkLeftParen), fortyTwo, initToken(tkRightParen)])
     let a = p.atom()
 
     check fortyTwo == a.Atom.value
 
   test "Raises exception on unexpected token between parentheses":
-    var p = initParser(@[initToken LeftParen, initToken Plus, initToken RightParen])
+    var p = initParser(@[initToken tkLeftParen, initToken tkPlus, initToken tkRightParen])
     expect UnexpectedTokenError:
       discard p.atom()
 
   test "Raises exception on unexpected token":
-    var p = initParser(@[initToken(Plus)])
+    var p = initParser(@[initToken(tkPlus)])
     expect UnexpectedTokenError:
       discard p.atom()
 
@@ -66,43 +66,43 @@ suite "Unary expression rule":
     check fortyTwo == e.Atom.value
 
   test "Parses Not token":
-    let notToken = initToken(Not, pos)
+    let notToken = initToken(tkNot, pos)
     var p = initParser(@[notToken, fortyTwo])
     let e = p.unaryExpression()
 
     check:
-      Not == e.UnaryExpression.operator.kind
+      tkNot == e.UnaryExpression.operator.kind
       fortyTwo == e.UnaryExpression.operand.Atom.value
 
   test "Parses Plus token":
-    let plusToken = initToken(Plus, pos)
+    let plusToken = initToken(tkPlus, pos)
     var p = initParser(@[plusToken, fortyTwo])
     let e = p.unaryExpression()
 
     check:
-      Plus == e.UnaryExpression.operator.kind
+      tkPlus == e.UnaryExpression.operator.kind
       fortyTwo == e.UnaryExpression.operand.Atom.value
 
   test "Parses Minus token":
-    let minusToken = initToken(Minus, pos)
+    let minusToken = initToken(tkMinus, pos)
     var p = initParser(@[minusToken, fortyTwo])
     let e = p.unaryExpression()
 
     check:
-      Minus == e.UnaryExpression.operator.kind
+      tkMinus == e.UnaryExpression.operator.kind
       fortyTwo == e.UnaryExpression.operand.Atom.value
 
 suite "Exponent expression rule":
   test "Non-matching token calls unary expression rule":
-    var p = initParser(@[initToken(Not, pos), fortyTwo])
+    var p = initParser(@[initToken(tkNot, pos), fortyTwo])
     let e = p.exponentExpression()
 
     check:
-      Not == e.UnaryExpression.operator.kind
+      tkNot == e.UnaryExpression.operator.kind
       fortyTwo == e.UnaryExpression.operand.Atom.value
 
   test "Parses exponent":
-    let exponent = initToken(Exponent, pos)
+    let exponent = initToken(tkExponent, pos)
     var p = initParser(@[fortyTwo, exponent, fortyTwo])
     let e = p.exponentExpression()
 
@@ -112,10 +112,10 @@ suite "Exponent expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses multiple exponents":
-    let one = initToken(DecInteger, pos, "1")
-    let two = initToken(DecInteger, pos, "2")
-    let three = initToken(DecInteger, pos, "3")
-    let exponent = initToken(Exponent, pos)
+    let one = initToken(tkDecInteger, pos, "1")
+    let two = initToken(tkDecInteger, pos, "2")
+    let three = initToken(tkDecInteger, pos, "3")
+    let exponent = initToken(tkExponent, pos)
 
     var p = initParser(@[one, exponent, two, exponent, three])
     let e = p.exponentExpression()
@@ -129,9 +129,9 @@ suite "Exponent expression rule":
 
 suite "Product expression rule":
   test "Non-matching token calls exponent expression rule":
-    let one = initToken(DecInteger, pos, "1")
-    let exponent = initToken(Exponent, pos)
-    let two = initToken(DecInteger, pos, "2")
+    let one = initToken(tkDecInteger, pos, "1")
+    let exponent = initToken(tkExponent, pos)
+    let two = initToken(tkDecInteger, pos, "2")
     var p = initParser(@[one, exponent, two])
     let e = p.productExpression()
 
@@ -141,7 +141,7 @@ suite "Product expression rule":
       two == e.BinaryExpression.right.Atom.value
 
   test "Parses multiply":
-    let multiply = initToken(Multiply, pos)
+    let multiply = initToken(tkMultiply, pos)
     var p = initParser(@[fortyTwo, multiply, fortyTwo])
     let e = p.productExpression()
 
@@ -151,7 +151,7 @@ suite "Product expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses divide":
-    let divide = initToken(Divide, pos)
+    let divide = initToken(tkDivide, pos)
     var p = initParser(@[fortyTwo, divide, fortyTwo])
     let e = p.productExpression()
 
@@ -161,7 +161,7 @@ suite "Product expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses modulo":
-    let modulo = initToken(Modulo, pos)
+    let modulo = initToken(tkModulo, pos)
     var p = initParser(@[fortyTwo, modulo, fortyTwo])
     let e = p.productExpression()
 
@@ -171,13 +171,13 @@ suite "Product expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses multiple multiply operators":
-    let one = initToken(DecInteger, pos, "1")
-    let two = initToken(DecInteger, pos, "2")
-    let three = initToken(DecInteger, pos, "3")
-    let four = initToken(DecInteger, pos, "4")
-    let multiply = initToken(Multiply, pos)
-    let divide = initToken(Divide, pos)
-    let modulo = initToken(Modulo, pos)
+    let one = initToken(tkDecInteger, pos, "1")
+    let two = initToken(tkDecInteger, pos, "2")
+    let three = initToken(tkDecInteger, pos, "3")
+    let four = initToken(tkDecInteger, pos, "4")
+    let multiply = initToken(tkMultiply, pos)
+    let divide = initToken(tkDivide, pos)
+    let modulo = initToken(tkModulo, pos)
 
     var p = initParser(@[one, multiply, two, divide, three, modulo, four])
     let e = p.productExpression()
@@ -193,9 +193,9 @@ suite "Product expression rule":
 
 suite "Sum expression rule":
   test "Non-matching token calls product expression rule":
-    let one = initToken(DecInteger, pos, "1")
-    let operator = initToken(Multiply, pos)
-    let two = initToken(DecInteger, pos, "2")
+    let one = initToken(tkDecInteger, pos, "1")
+    let operator = initToken(tkMultiply, pos)
+    let two = initToken(tkDecInteger, pos, "2")
     var p = initParser(@[one, operator, two])
     let e = p.sumExpression()
 
@@ -205,7 +205,7 @@ suite "Sum expression rule":
       two == e.BinaryExpression.right.Atom.value
 
   test "Parses addition":
-    let operator = initToken(Plus, pos)
+    let operator = initToken(tkPlus, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.sumExpression()
 
@@ -215,7 +215,7 @@ suite "Sum expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses subtraction":
-    let operator = initToken(Minus, pos)
+    let operator = initToken(tkMinus, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.sumExpression()
 
@@ -225,11 +225,11 @@ suite "Sum expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses multiple sum operators":
-    let one = initToken(DecInteger, pos, "1")
-    let two = initToken(DecInteger, pos, "2")
-    let three = initToken(DecInteger, pos, "3")
-    let operator1 = initToken(Plus, pos)
-    let operator2 = initToken(Minus, pos)
+    let one = initToken(tkDecInteger, pos, "1")
+    let two = initToken(tkDecInteger, pos, "2")
+    let three = initToken(tkDecInteger, pos, "3")
+    let operator1 = initToken(tkPlus, pos)
+    let operator2 = initToken(tkMinus, pos)
 
     var p = initParser(@[one, operator1, two, operator2, three])
     let e = p.sumExpression()
@@ -243,9 +243,9 @@ suite "Sum expression rule":
 
 suite "And expression rule":
   test "Non-matching token calls sum expression rule":
-    let one = initToken(DecInteger, pos, "1")
-    let operator = initToken(Plus, pos)
-    let two = initToken(DecInteger, pos, "2")
+    let one = initToken(tkDecInteger, pos, "1")
+    let operator = initToken(tkPlus, pos)
+    let two = initToken(tkDecInteger, pos, "2")
     var p = initParser(@[one, operator, two])
     let e = p.andExpression()
 
@@ -255,7 +255,7 @@ suite "And expression rule":
       two == e.BinaryExpression.right.Atom.value
 
   test "Parses and":
-    let operator = initToken(And, pos)
+    let operator = initToken(tkAnd, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.andExpression()
 
@@ -266,9 +266,9 @@ suite "And expression rule":
 
 suite "Or expression rule":
   test "Non-matching token calls and expression rule":
-    let one = initToken(DecInteger, pos, "1")
-    let operator = initToken(And, pos)
-    let two = initToken(DecInteger, pos, "2")
+    let one = initToken(tkDecInteger, pos, "1")
+    let operator = initToken(tkAnd, pos)
+    let two = initToken(tkDecInteger, pos, "2")
     var p = initParser(@[one, operator, two])
     let e = p.orExpression()
 
@@ -278,7 +278,7 @@ suite "Or expression rule":
       two == e.BinaryExpression.right.Atom.value
 
   test "Parses or":
-    let operator = initToken(Or, pos)
+    let operator = initToken(tkOr, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.orExpression()
 
@@ -289,9 +289,9 @@ suite "Or expression rule":
 
 suite "Compare expression rule":
   test "Non-matching token calls or expression rule":
-    let one = initToken(DecInteger, pos, "1")
-    let operator = initToken(Or, pos)
-    let two = initToken(DecInteger, pos, "2")
+    let one = initToken(tkDecInteger, pos, "1")
+    let operator = initToken(tkOr, pos)
+    let two = initToken(tkDecInteger, pos, "2")
     var p = initParser(@[one, operator, two])
     let e = p.compareExpression()
 
@@ -301,7 +301,7 @@ suite "Compare expression rule":
       two == e.BinaryExpression.right.Atom.value
 
   test "Parses equal":
-    let operator = initToken(Equal, pos)
+    let operator = initToken(tkEqual, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.compareExpression()
 
@@ -311,7 +311,7 @@ suite "Compare expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses not equal":
-    let operator = initToken(NotEqual, pos)
+    let operator = initToken(tkNotEqual, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.compareExpression()
 
@@ -321,7 +321,7 @@ suite "Compare expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses less than":
-    let operator = initToken(LessThan, pos)
+    let operator = initToken(tkLessThan, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.compareExpression()
 
@@ -331,7 +331,7 @@ suite "Compare expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses greater than":
-    let operator = initToken(GreaterThan, pos)
+    let operator = initToken(tkGreaterThan, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.compareExpression()
 
@@ -341,7 +341,7 @@ suite "Compare expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses less than or equal":
-    let operator = initToken(LessThanOrEqual, pos)
+    let operator = initToken(tkLessThanOrEqual, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.compareExpression()
 
@@ -351,7 +351,7 @@ suite "Compare expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses greater than or equal":
-    let operator = initToken(GreaterThanOrEqual, pos)
+    let operator = initToken(tkGreaterThanOrEqual, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.compareExpression()
 
@@ -362,9 +362,9 @@ suite "Compare expression rule":
 
 suite "Assignment expression rule":
   test "Non-matching token calls compare expression rule":
-    let one = initToken(DecInteger, pos, "1")
-    let operator = initToken(Equal, pos)
-    let two = initToken(DecInteger, pos, "2")
+    let one = initToken(tkDecInteger, pos, "1")
+    let operator = initToken(tkEqual, pos)
+    let two = initToken(tkDecInteger, pos, "2")
     var p = initParser(@[one, operator, two])
     let e = p.assignmentExpression()
 
@@ -374,7 +374,7 @@ suite "Assignment expression rule":
       two == e.BinaryExpression.right.Atom.value
 
   test "Parses assign":
-    let operator = initToken(Assign, pos)
+    let operator = initToken(tkAssign, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.assignmentExpression()
 
@@ -384,7 +384,7 @@ suite "Assignment expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses assign addition":
-    let operator = initToken(PlusAssign, pos)
+    let operator = initToken(tkPlusAssign, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.assignmentExpression()
 
@@ -394,7 +394,7 @@ suite "Assignment expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses assign subtraction":
-    let operator = initToken(MinusAssign, pos)
+    let operator = initToken(tkMinusAssign, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.assignmentExpression()
 
@@ -404,7 +404,7 @@ suite "Assignment expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses assign multiplication":
-    let operator = initToken(MultiplyAssign, pos)
+    let operator = initToken(tkMultiplyAssign, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.assignmentExpression()
 
@@ -414,7 +414,7 @@ suite "Assignment expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses assign division":
-    let operator = initToken(DivideAssign, pos)
+    let operator = initToken(tkDivideAssign, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.assignmentExpression()
 
@@ -424,7 +424,7 @@ suite "Assignment expression rule":
       fortyTwo == e.BinaryExpression.right.Atom.value
 
   test "Parses assign exponent":
-    let operator = initToken(ExponentAssign, pos)
+    let operator = initToken(tkExponentAssign, pos)
     var p = initParser(@[fortyTwo, operator, fortyTwo])
     let e = p.assignmentExpression()
 
@@ -441,9 +441,9 @@ suite "Postfix expression rule":
     check fortyTwo == e.Atom.value
 
   test "Parses field access":
-    let one = initToken(DecInteger, pos, "1")
-    let field = initToken(Identifier, pos, "field")
-    var p = initParser(@[one, initToken(Dot, pos), field])
+    let one = initToken(tkDecInteger, pos, "1")
+    let field = initToken(tkIdentifier, pos, "field")
+    var p = initParser(@[one, initToken(tkDot, pos), field])
     let e = p.postfixExpression()
 
     check:
@@ -451,15 +451,15 @@ suite "Postfix expression rule":
       field == e.FieldAccessExpression.field
 
   test "Field access without Identifier token raises exception":
-    let one = initToken(Identifier, pos, "one")
-    var p = initParser(@[one, initToken(Dot), fortyTwo])
+    let one = initToken(tkIdentifier, pos, "one")
+    var p = initParser(@[one, initToken(tkDot), fortyTwo])
     
     expect UnexpectedTokenError:
       discard p.postfixExpression()
     
   test "Parses empty call":
-    let one = initToken(DecInteger, pos, "1")
-    var p = initParser(@[one, initToken(LeftParen), initToken(RightParen)])
+    let one = initToken(tkDecInteger, pos, "1")
+    var p = initParser(@[one, initToken(tkLeftParen), initToken(tkRightParen)])
     let e = p.postfixExpression()
 
     check:
@@ -467,8 +467,8 @@ suite "Postfix expression rule":
       0 == len(e.CallExpression.parameters)
 
   test "Parses call with one parameter":
-    let one = initToken(DecInteger, pos, "1")
-    var p = initParser(@[fortyTwo, initToken(LeftParen), one, initToken(RightParen)])
+    let one = initToken(tkDecInteger, pos, "1")
+    var p = initParser(@[fortyTwo, initToken(tkLeftParen), one, initToken(tkRightParen)])
     let e = p.postfixExpression()
 
     check:
@@ -477,9 +477,9 @@ suite "Postfix expression rule":
       one == e.CallExpression.parameters[0].Atom.value
 
   test "Parses call with multiple parameters":
-    let one = initToken(DecInteger, pos, "1")
-    let two = initToken(DecInteger, pos, "2")
-    var p = initParser(@[fortyTwo, initToken(LeftParen), one, initToken(Comma), two, initToken(RightParen)])
+    let one = initToken(tkDecInteger, pos, "1")
+    let two = initToken(tkDecInteger, pos, "2")
+    var p = initParser(@[fortyTwo, initToken(tkLeftParen), one, initToken(tkComma), two, initToken(tkRightParen)])
     let e = p.postfixExpression()
 
     check:
@@ -489,15 +489,15 @@ suite "Postfix expression rule":
       two == e.CallExpression.parameters[1].Atom.value
 
   test "Call without matching right parentheses raises exception":
-    let one = initToken(Identifier, pos, "one")
-    var p = initParser(@[one, initToken(LeftParen), one])
+    let one = initToken(tkIdentifier, pos, "one")
+    var p = initParser(@[one, initToken(tkLeftParen), one])
 
     expect UnexpectedTokenError:
       discard p.postfixExpression()
 
   test "Parses subscript":
-    let one = initToken(DecInteger, pos, "1")
-    var p = initParser(@[fortyTwo, initToken(LeftSquare), one, initToken(RightSquare)])
+    let one = initToken(tkDecInteger, pos, "1")
+    var p = initParser(@[fortyTwo, initToken(tkLeftSquare), one, initToken(tkRightSquare)])
     let e = p.postfixExpression()
 
     check:
@@ -505,17 +505,17 @@ suite "Postfix expression rule":
       one == e.SubscriptExpression.subscript.Atom.value
 
   test "Subscript raises exception when there is no matching right square bracket":
-    let one = initToken(Identifier, pos, "one")
-    var p = initParser(@[one, initToken(LeftSquare), fortyTwo])
+    let one = initToken(tkIdentifier, pos, "one")
+    var p = initParser(@[one, initToken(tkLeftSquare), fortyTwo])
     
     expect UnexpectedTokenError:
       discard p.postfixExpression()
 
   test "Parses multiple postfix expressions":
-    let one = initToken(DecInteger, pos, "1")
-    let two = initToken(Identifier, pos, "two")
-    let three = initToken(DecInteger, pos, "3")
-    var p = initParser(@[fortyTwo, initToken(LeftParen), one, initToken(RightParen), initToken(Dot), two, initToken(LeftSquare), three, initToken(RightSquare)])
+    let one = initToken(tkDecInteger, pos, "1")
+    let two = initToken(tkIdentifier, pos, "two")
+    let three = initToken(tkDecInteger, pos, "3")
+    var p = initParser(@[fortyTwo, initToken(tkLeftParen), one, initToken(tkRightParen), initToken(tkDot), two, initToken(tkLeftSquare), three, initToken(tkRightSquare)])
     let e = p.postfixExpression()
 
     check:
@@ -548,20 +548,20 @@ suite "Expression rule":
 
 suite "Statement rule":
   test "Parses ExpressionStatement ending in newline":
-    var p = initParser(@[fortyTwo, initToken(Newline)])
+    var p = initParser(@[fortyTwo, initToken(tkNewline)])
     let statement = p.statement()
 
     check fortyTwo == statement.ExpressionStatement.expression.Atom.value
 
   test "Parses ExpresionStatement ending in dedent":
-    var p = initParser(@[fortyTwo, initToken(Dedent)])
+    var p = initParser(@[fortyTwo, initToken(tkDedent)])
     let statement = p.statement()
 
     check fortyTwo == statement.ExpressionStatement.expression.Atom.value
 
   test "Parses ImportStatement of one module":
-    let one = initToken(Identifier, pos, "one")
-    var p = initParser(@[initToken(Import), one, initToken(Newline)])
+    let one = initToken(tkIdentifier, pos, "one")
+    var p = initParser(@[initToken(tkImport), one, initToken(tkNewline)])
     let s = p.statement()
 
     check:
@@ -569,9 +569,9 @@ suite "Statement rule":
       one == s.ImportStatement.modules[0]
 
   test "Parses ImportStatement of multiple modules":
-    let one = initToken(Identifier, pos, "one")
-    let two = initToken(Identifier, pos, "two")
-    var p = initParser(@[initToken(Import), one, initToken(Comma), two, initToken(Newline)])
+    let one = initToken(tkIdentifier, pos, "one")
+    let two = initToken(tkIdentifier, pos, "two")
+    var p = initParser(@[initToken(tkImport), one, initToken(tkComma), two, initToken(tkNewline)])
     let s = p.statement()
 
     check:
@@ -581,15 +581,15 @@ suite "Statement rule":
 
 suite "Statements rule":
   test "Parses one token":
-    var p = initParser(@[initToken(Indent), fortyTwo, initToken(Newline), initToken(Dedent)])
+    var p = initParser(@[initToken(tkIndent), fortyTwo, initToken(tkNewline), initToken(tkDedent)])
     let statements = p.statements()
 
     check fortyTwo == statements[0].ExpressionStatement.expression.Atom.value
 
   test "Parses multiple tokens":
     let expected1 = fortyTwo
-    let expected2 = initToken(String, pos, "Test string")
-    var p = initParser(@[initToken(Indent), expected1, initToken(Newline), expected2, initToken(Newline), initToken(Dedent)])
+    let expected2 = initToken(tkString, pos, "Test string")
+    var p = initParser(@[initToken(tkIndent), expected1, initToken(tkNewline), expected2, initToken(tkNewline), initToken(tkDedent)])
     let statements = p.statements()
 
     check:
@@ -597,26 +597,26 @@ suite "Statements rule":
       expected2 == statements[1].ExpressionStatement.expression.Atom.value
 
   test "Raises exception when Indent not found":
-    var p = initParser(@[fortyTwo, initToken(Dedent)])
+    var p = initParser(@[fortyTwo, initToken(tkDedent)])
 
     expect UnexpectedTokenError:
       discard p.statements()
 
   test "Raises exception when EndOfFile instead of Dedent not found":
-    var p = initParser(@[initToken(Indent), fortyTwo, initToken(Newline), initToken(EndOfFile)])
+    var p = initParser(@[initToken(tkIndent), fortyTwo, initToken(tkNewline), initToken(tkEndOfFile)])
 
     expect UnexpectedTokenError:
       discard p.statements()
 
 suite "Start rule":
   test "Start parses a statement":
-    var p = initParser(@[initToken(Indent), fortyTwo, initToken(Newline), initToken(Dedent), initToken(EndOfFile)])
+    var p = initParser(@[initToken(tkIndent), fortyTwo, initToken(tkNewline), initToken(tkDedent), initToken(tkEndOfFile)])
     let start = p.start()
 
     check fortyTwo == start.statements[0].ExpressionStatement.expression.Atom.value
 
   test "Raises exception when EndOfFile token not present":
-    var p = initParser(@[initToken(Indent), fortyTwo, initToken(Dedent)])
+    var p = initParser(@[initToken(tkIndent), fortyTwo, initToken(tkDedent)])
 
     expect UnexpectedTokenError:
       discard p.start()

@@ -2,78 +2,78 @@ import position
 
 type
   TokenType* = enum
-    Invalid,
+    tkInvalid,
 
-    Indent,
-    Dedent,
+    tkIndent,
+    tkDedent,
     
-    Newline,
+    tkNewline,
 
-    DecInteger,
-    BinInteger,
-    OctInteger,
-    HexInteger,
-    Float,
-    String,
+    tkDecInteger,
+    tkBinInteger,
+    tkOctInteger,
+    tkHexInteger,
+    tkFloat,
+    tkString,
 
-    Identifier,
+    tkIdentifier,
 
     # Keywords
-    Import,
-    Function,
-    Struct,
-    If,
-    ElseIf,
-    Else,
-    While,
-    For,
-    And,
-    Not,
-    Or,
-    True,
-    False,
-    Return,
+    tkImport,
+    tkFunction,
+    tkStruct,
+    tkIf,
+    tkElseIf,
+    tkElse,
+    tkWhile,
+    tkFor,
+    tkAnd,
+    tkNot,
+    tkOr,
+    tkTrue,
+    tkFalse,
+    tkReturn,
 
     # Operators
-    Dot,
-    Comma,
-    Colon,
+    tkDot,
+    tkComma,
+    tkColon,
 
     # Arithmetic
-    Plus,
-    Minus,
-    Multiply,
-    Divide,
-    Modulo,
-    Exponent,
+    tkPlus,
+    tkMinus,
+    tkMultiply,
+    tkDivide,
+    tkModulo,
+    tkExponent,
 
     # Assignment
-    Assign,
-    PlusAssign,
-    MinusAssign,
-    MultiplyAssign,
-    DivideAssign,
-    ModuloAssign,
-    ExponentAssign,
+    tkAssign,
+    tkPlusAssign,
+    tkMinusAssign,
+    tkMultiplyAssign,
+    tkDivideAssign,
+    tkModuloAssign,
+    tkExponentAssign,
 
     # Comparision
-    Equal,
-    NotEqual,
-    LessThan,
-    GreaterThan,
-    LessThanOrEqual,
-    GreaterThanOrEqual,
+    tkEqual,
+    tkNotEqual,
+    tkLessThan,
+    tkGreaterThan,
+    tkLessThanOrEqual,
+    tkGreaterThanOrEqual,
 
     # Brackets
-    LeftParen,
-    RightParen,
-    LeftBrace,
-    RightBrace,
-    LeftSquare,
-    RightSquare,
+    tkLeftParen,
+    tkRightParen,
+    tkLeftBrace,
+    tkRightBrace,
+    tkLeftSquare,
+    tkRightSquare,
 
-    Error,
-    EndOfFile
+    tkError,
+    tkEndOfFile
 
   Token* = object
     kind*: TokenType

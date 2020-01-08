@@ -5,8 +5,8 @@ import caleylang / [private/parser_object, token], caleylang/position
 suite "Default parser":
   setup:
     let testInput = @[
-      initToken(DecInteger, initPosition(1, 2), "42"),
-      initToken(String, initPosition(4, 2), "Test string")
+      initToken(tkDecInteger, initPosition(1, 2), "42"),
+      initToken(tkString, initPosition(4, 2), "Test string")
     ]
     var p = initParser(testInput)
     

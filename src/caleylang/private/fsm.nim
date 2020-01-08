@@ -4,31 +4,31 @@ import ../position, constants, context, lexer_stream, lexer_utility, ../token, s
 
 
 type Phase = enum
-  Prime
-  BlankLines
-  Indents
-  Dedents
-  Branch
-  Operator
-  Strings
-  Number
-  Word
+  pPrime
+  pBlankLines
+  pIndents
+  pDedents
+  pBranch
+  pOperator
+  pStrings
+  pNumber
+  pWord
 
 type Event = enum
-  StartOfLine
-  IsIndent
-  IsDigit
-  IsBinary
-  IsHexidecimal
-  IsOctal
-  IsReserved
-  IsString
-  InBrackets
-  LexemeLessThanIndent
-  LexemeEqualToIndent
-  LexemeGreaterThanIndent
-  BracketsEmpty
-  EndOfFile
+  eStartOfLine
+  eIsIndent
+  eIsDigit
+  eIsBinary
+  eIsHexidecimal
+  eIsOctal
+  eIsReserved
+  eIsString
+  eInBrackets
+  eLexemeLessThanIndent
+  eLexemeEqualToIndent
+  eLexemeGreaterThanIndent
+  eBracketsEmpty
+  eEndOfFile
 
 
 declareAutomaton(lexerMachine, Phase, Event)
@@ -36,69 +36,69 @@ declareAutomaton(lexerMachine, Phase, Event)
 setPrologue(lexerMachine):
   var lexeme: string
 
-setInitialState(lexerMachine, Prime)
+setInitialState(lexerMachine, pPrime)
 
-setTerminalState(lexerMachine, End)
+setTerminalState(lexerMachine, pEnd)
 
 #Events
 
-implEvent(lexerMachine, StartOfLine):
+implEvent(lexerMachine, eStartOfLine):
   context.currentPosition.column == 1
 
-implEvent(lexerMachine, EndOfFile):
+implEvent(lexerMachine, eEndOfFile):
   context.eof
 
-implEvent(lexerMachine, IsIndent):
+implEvent(lexerMachine, eIsIndent):
   context.matchAny(WhitespaceChars)
 
-implEvent(lexerMachine, IsDigit):
+implEvent(lexerMachine, eIsDigit):
   context.matchAny(DigitChars)
 
-implEvent(lexerMachine, IsBinary):
+implEvent(lexerMachine, eIsBinary):
   context.match("0") and context.matchNext("b")
 
-implEvent(lexerMachine, IsHexidecimal):
+implEvent(lexerMachine, eIsHexidecimal):
   context.match("0") and context.matchNext("x")
     
-implEvent(lexerMachine, IsOctal):
+implEvent(lexerMachine, eIsOctal):
   context.match("0") and context.matchNext("o")
 
-implEvent(lexerMachine, IsReserved):
+implEvent(lexerMachine, eIsReserved):
   context.matchAny(ReservedChars)
 
-implEvent(lexerMachine, IsString):
+implEvent(lexerMachine, eIsString):
   context.match("\"")
 
-implEvent(lexerMachine, InBrackets):
+implEvent(lexerMachine, eInBrackets):
   not context.brackets.empty
 
-implEvent(lexerMachine, LexemeLessThanIndent):
+implEvent(lexerMachine, eLexemeLessThanIndent):
   not context.indents.empty and lexeme.len < context.indents.top()
 
-implEvent(lexerMachine, LexemeEqualToIndent):
+implEvent(lexerMachine, eLexemeEqualToIndent):
   not context.indents.empty and lexeme.len == context.indents.top()
 
-implEvent(lexerMachine, LexemeGreaterThanIndent):
+implEvent(lexerMachine, eLexemeGreaterThanIndent):
   not context.indents.empty and lexeme.len > context.indents.top()
 
-implEvent(lexerMachine, BracketsEmpty):
+implEvent(lexerMachine, eBracketsEmpty):
   context.indents.empty
 
 
 # State transitions
 behavior(lexerMachine):
-  ini: Prime
-  fin: BlankLines
+  ini: pPrime
+  fin: pBlankLines
   transition:
     discard advance context
     discard advance context
     context.indents.push(0)
-    tokens.add(initToken(Indent))
+    tokens.add(initToken(tkIndent))
 
 behavior(lexerMachine):
-  ini: BlankLines
-  fin: Indents
-  event: StartOfLine
+  ini: pBlankLines
+  fin: pIndents
+  event: eStartOfLine
   transition:
     while not context.eof:
       lexeme = context.appendWhile(IndentChars)
@@ -108,39 +108,39 @@ behavior(lexerMachine):
         break
 
 behavior(lexerMachine):
-  ini: BlankLines
-  fin: Branch
+  ini: pBlankLines
+  fin: pBranch
   transition:
     discard
 
 behavior(lexerMachine):
-  ini: [Indents, Operator, Word]
-  fin: Dedents
-  interrupt: EndOfFile
+  ini: [pIndents, pOperator, pWord]
+  fin: pDedents
+  interrupt: eEndOfFile
   transition:
     discard
 
-onEntry(lexerMachine, [Indents, Dedents]):
+onEntry(lexerMachine, [pIndents, pDedents]):
   lexeme = lexeme.replace("\t", "    ")
 
 behavior(lexerMachine):
-  ini: Indents
-  fin: Dedents
-  event: LexemeLessThanIndent
+  ini: pIndents
+  fin: pDedents
+  event: eLexemeLessThanIndent
   transition:
     discard
 
 behavior(lexerMachine):
-  ini: Indents
-  fin: Branch
-  event: LexemeEqualToIndent
+  ini: pIndents
+  fin: pBranch
+  event: eLexemeEqualToIndent
   transition:
     lexeme = ""
 
 behavior(lexerMachine):
-  ini: Indents
-  fin: Branch
-  event: LexemeGreaterThanIndent
+  ini: pIndents
+  fin: pBranch
+  event: eLexemeGreaterThanIndent
   transition:
     let length = lexeme.len
     let pos = initPosition(
@@ -148,258 +148,258 @@ behavior(lexerMachine):
       column=context.currentPosition.column - length
     )
     context.indents.push(length)
-    tokens.add(initToken(Indent, pos))
+    tokens.add(initToken(tkIndent, pos))
     lexeme = ""
 
-onEntry(lexerMachine, Branch):
+onEntry(lexerMachine, pBranch):
   context.skipWhitespace
 
 behavior(lexerMachine):
-  ini: Branch
-  fin: Operator
-  event: IsReserved
+  ini: pBranch
+  fin: pOperator
+  event: eIsReserved
   transition:
     discard
 
 behavior(lexerMachine):
-  ini: Branch
-  fin: Strings
-  event: IsString
+  ini: pBranch
+  fin: pStrings
+  event: eIsString
   transition:
     discard
 
 behavior(lexerMachine):
-  ini: Branch
-  fin: Number
-  event: IsDigit
+  ini: pBranch
+  fin: pNumber
+  event: eIsDigit
   transition:
     discard
 
 behavior(lexerMachine):
-  ini: Branch
-  fin: Word
+  ini: pBranch
+  fin: pWord
   transition:
     discard
 
 behavior(lexerMachine):
-  ini: Operator
-  fin: BlankLines
+  ini: pOperator
+  fin: pBlankLines
   transition:
     let pos = context.currentPosition
     case context.currentCharacter:
       of "\n":
-        tokens.add(initToken(Newline, pos))
+        tokens.add(initToken(tkNewline, pos))
         discard advance context
       of ".":
-        tokens.add(initToken(Dot, pos))
+        tokens.add(initToken(tkDot, pos))
         discard advance context
       of ",":
-        tokens.add(initToken(Comma, pos))
+        tokens.add(initToken(tkComma, pos))
         discard advance context
       of ":":
-        tokens.add(initToken(Colon, pos))
+        tokens.add(initToken(tkColon, pos))
         discard advance context
 
       # Arithmetic and assignment
       of "+":
         discard advance context
         if context.match("="):
-          tokens.add(initToken(PlusAssign, pos))
+          tokens.add(initToken(tkPlusAssign, pos))
           discard advance context
         else:
-          tokens.add(initToken(Plus, pos))
+          tokens.add(initToken(tkPlus, pos))
       of "-":
         discard advance context
         if context.match("="):
-          tokens.add(initToken(MinusAssign, pos))
+          tokens.add(initToken(tkMinusAssign, pos))
           discard advance context
         else:
-          tokens.add(initToken(Minus, pos))
+          tokens.add(initToken(tkMinus, pos))
       of "*":
         discard advance context
         case context.currentCharacter:
           of "=":
-            tokens.add(initToken(MultiplyAssign, pos))
+            tokens.add(initToken(tkMultiplyAssign, pos))
             discard advance context
           of "*":
             discard advance context
             case context.currentCharacter:
               of "=":
-                tokens.add(initToken(ExponentAssign, pos))
+                tokens.add(initToken(tkExponentAssign, pos))
                 discard advance context
               else:
-                tokens.add(initToken(Exponent, pos))
+                tokens.add(initToken(tkExponent, pos))
           else:
-            tokens.add(initToken(Multiply, pos))
+            tokens.add(initToken(tkMultiply, pos))
       of "/":
         discard advance context
         if context.match("="):
-          tokens.add(initToken(DivideAssign, pos))
+          tokens.add(initToken(tkDivideAssign, pos))
           discard advance context
         else:
-          tokens.add(initToken(Divide, pos))
+          tokens.add(initToken(tkDivide, pos))
       of "%":
         discard advance context
         if context.match("="):
-          tokens.add(initToken(ModuloAssign, pos))
+          tokens.add(initToken(tkModuloAssign, pos))
           discard advance context
         else:
-          tokens.add(initToken(Modulo, pos))
+          tokens.add(initToken(tkModulo, pos))
 
       # Assignment and comparison
       of "=":
         discard advance context
         case context.currentCharacter:
           of "=":
-            tokens.add(initToken(Equal, pos))
+            tokens.add(initToken(tkEqual, pos))
             discard advance context
           else:
-            tokens.add(initToken(Assign, pos))
+            tokens.add(initToken(tkAssign, pos))
       of "<":
         discard advance context
         case context.currentCharacter:
           of "=":
-            tokens.add(initToken(LessThanOrEqual, pos))
+            tokens.add(initToken(tkLessThanOrEqual, pos))
             discard advance context
           else:
-            tokens.add(initToken(LessThan, pos))
+            tokens.add(initToken(tkLessThan, pos))
       of ">":
         discard advance context
         case context.currentCharacter:
           of "=":
-            tokens.add(initToken(GreaterThanOrEqual, pos))
+            tokens.add(initToken(tkGreaterThanOrEqual, pos))
             discard advance context
           else:
-            tokens.add(initToken(GreaterThan, pos))
+            tokens.add(initToken(tkGreaterThan, pos))
       of "!":
         discard advance context
         case context.currentCharacter:
           of "=":
-            tokens.add(initToken(NotEqual, pos))
+            tokens.add(initToken(tkNotEqual, pos))
             discard advance context
           else:
-            tokens.add(initToken(Error, pos, "Expected = character after !"))
+            tokens.add(initToken(tkError, pos, "Expected = character after !"))
 
       # Brackets
       of "(":
-        tokens.add(initToken(LeftParen, pos))
+        tokens.add(initToken(tkLeftParen, pos))
         context.brackets.push(advance context)
       of ")":
         discard advance context
         if context.brackets.pop == "(":
-          tokens.add(initToken(RightParen, pos))
+          tokens.add(initToken(tkRightParen, pos))
         else:
-          tokens.add(initToken(Error, pos, "Mismatched bracket; expected )"))
+          tokens.add(initToken(tkError, pos, "Mismatched bracket; expected )"))
       of "[":
-        tokens.add(initToken(LeftSquare, pos))
+        tokens.add(initToken(tkLeftSquare, pos))
         context.brackets.push(advance context)
       of "]":
         discard advance context
         if context.brackets.pop == "[":
-          tokens.add(initToken(RightSquare, pos))
+          tokens.add(initToken(tkRightSquare, pos))
         else:
-          tokens.add(initToken(Error, pos, "Mismatched bracket; expected ]"))
+          tokens.add(initToken(tkError, pos, "Mismatched bracket; expected ]"))
       of "{":
-        tokens.add(initToken(LeftBrace, pos))
+        tokens.add(initToken(tkLeftBrace, pos))
         context.brackets.push(advance context)
       of "}":
         discard advance context
         if context.brackets.pop == "{":
-          tokens.add(initToken(RightBrace, pos))
+          tokens.add(initToken(tkRightBrace, pos))
         else:
-          tokens.add(initToken(Error, pos, "Mismatched bracket; expected }"))
+          tokens.add(initToken(tkError, pos, "Mismatched bracket; expected }"))
       
       else:
-        tokens.add(initToken(Error, pos))
+        tokens.add(initToken(tkError, pos))
         discard advance context
 
 behavior(lexerMachine):
-  ini: Word
-  fin: BlankLines
+  ini: pWord
+  fin: pBlankLines
   transition:
     let pos = context.currentPosition
     let word = context.appendWhileNot(ReservedChars)
 
     case word:
       of "import":
-        tokens.add(initToken(Import, pos))
+        tokens.add(initToken(tkImport, pos))
       of "func":
-        tokens.add(initToken(Function, pos))
+        tokens.add(initToken(tkFunction, pos))
       of "struct":
-        tokens.add(initToken(Struct, pos))
+        tokens.add(initToken(tkStruct, pos))
       of "if":
-        tokens.add(initToken(If, pos))
+        tokens.add(initToken(tkIf, pos))
       of "elif":
-        tokens.add(initToken(ElseIf, pos))
+        tokens.add(initToken(tkElseIf, pos))
       of "else":
-        tokens.add(initToken(Else, pos))
+        tokens.add(initToken(tkElse, pos))
       of "while":
-        tokens.add(initToken(While, pos))
+        tokens.add(initToken(tkWhile, pos))
       of "for":
-        tokens.add(initToken(For, pos))
+        tokens.add(initToken(tkFor, pos))
       of "and":
-        tokens.add(initToken(And, pos))
+        tokens.add(initToken(tkAnd, pos))
       of "or":
-        tokens.add(initToken(Or, pos))
+        tokens.add(initToken(tkOr, pos))
       of "not":
-        tokens.add(initToken(Not, pos))
+        tokens.add(initToken(tkNot, pos))
       of "true":
-        tokens.add(initToken(True, pos))
+        tokens.add(initToken(tkTrue, pos))
       of "false":
-        tokens.add(initToken(False, pos))
+        tokens.add(initToken(tkFalse, pos))
       of "return":
-        tokens.add(initToken(Return, pos))
+        tokens.add(initToken(tkReturn, pos))
       else:
-        tokens.add(initToken(Identifier, pos, word))
+        tokens.add(initToken(tkIdentifier, pos, word))
 
 behavior(lexerMachine):
-  ini: Number
-  fin: BlankLines
-  event: IsBinary
+  ini: pNumber
+  fin: pBlankLines
+  event: eIsBinary
   transition:
     let pos = context.currentPosition
     let number = context.advance & context.advance & context.appendWhile(BinaryChars)
-    tokens.add(initToken(BinInteger, pos, number))
+    tokens.add(initToken(tkBinInteger, pos, number))
 
 behavior(lexerMachine):
-  ini: Number
-  fin: BlankLines
-  event: IsHexidecimal
+  ini: pNumber
+  fin: pBlankLines
+  event: eIsHexidecimal
   transition:
     let pos = context.currentPosition
     let number = context.advance & context.advance & context.appendWhile(HexChars)
-    tokens.add(initToken(HexInteger, pos, number))
+    tokens.add(initToken(tkHexInteger, pos, number))
 
 behavior(lexerMachine):
-  ini: Number
-  fin: BlankLines
-  event: IsOctal
+  ini: pNumber
+  fin: pBlankLines
+  event: eIsOctal
   transition:
     let pos = context.currentPosition
     let number = context.advance & context.advance & context.appendWhile(OctChars)
-    tokens.add(initToken(OctInteger, pos, number))
+    tokens.add(initToken(tkOctInteger, pos, number))
 
 behavior(lexerMachine):
-  ini: Number
-  fin: BlankLines
+  ini: pNumber
+  fin: pBlankLines
   transition:
     let pos = context.currentPosition
 
     if context.match("0") and context.matchNextAny(DigitChars):
-      tokens.add(initToken(Error, pos, "Integer cannot start with a 0"))
+      tokens.add(initToken(tkError, pos, "Integer cannot start with a 0"))
       discard context.appendWhile(DigitChars)
       return
 
     let number = context.appendWhile(DigitChars)
 
     if context.match(".") and context.matchNextAny(DigitChars):
-      tokens.add(initToken(Float, pos, number & context.advance & context.appendWhile(DigitChars)))
+      tokens.add(initToken(tkFloat, pos, number & context.advance & context.appendWhile(DigitChars)))
     else:
-      tokens.add(initToken(DecInteger, pos, number))
+      tokens.add(initToken(tkDecInteger, pos, number))
 
 behavior(lexerMachine):
-  ini: Strings
-  fin: BlankLines
+  ini: pStrings
+  fin: pBlankLines
   transition:
     let pos = context.currentPosition
     var string_value: string
@@ -452,45 +452,45 @@ behavior(lexerMachine):
               discard advance context
               discard advance context
             else:
-              tokens.add(initToken(Error, pos, "Invalid escape character"))
+              tokens.add(initToken(tkError, pos, "Invalid escape character"))
               break
         of "\n":
-          tokens.add(initToken(Error, pos, "Newline in middle of string"))
+          tokens.add(initToken(tkError, pos, "Newline in middle of string"))
           break
         else:
           string_value &= advance context
 
     if context.match("\""):  
-      tokens.add(initToken(String, pos, string_value))
+      tokens.add(initToken(tkString, pos, string_value))
       discard advance context
     else:
-      tokens.add(initToken(Error, pos, "String does not have closing double quote"))
+      tokens.add(initToken(tkError, pos, "String does not have closing double quote"))
 
 behavior(lexerMachine):
-  ini: Dedents
-  fin: BlankLines
+  ini: pDedents
+  fin: pBlankLines
   transition:
     let length = lexeme.len
     lexeme = ""
     let pos = initPosition(line=context.currentPosition.line, column=context.currentPosition.column - length)
     while context.indents.top != length:
       discard context.indents.pop
-      tokens.add(initToken(Dedent, pos))
+      tokens.add(initToken(tkDedent, pos))
 
 behavior(lexerMachine):
-  ini: Dedents
-  fin: End
-  event: EndOfFile
+  ini: pDedents
+  fin: pEnd
+  event: eEndOfFile
   transition:
     let pos = context.currentPosition
 
     while not context.brackets.empty:
       let bracket = context.brackets.pop
-      tokens.add(initToken(Error, pos, "Bracket " & bracket & " not closed"))
+      tokens.add(initToken(tkError, pos, "Bracket " & bracket & " not closed"))
 
     while not context.indents.empty:
       discard context.indents.pop
-      tokens.add(initToken(Dedent, pos))
+      tokens.add(initToken(tkDedent, pos))
 
 
 synthesize(lexerMachine):
