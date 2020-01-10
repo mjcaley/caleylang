@@ -181,9 +181,3 @@ proc printChild[T](p: var PrinterState, child: T) =
 proc printTree*[T](tree: T) =
   var p = initPrinterState()
   print(tree, p)
-
-
-when isMainModule:
-  let tokens = lexString("(1 + 2) * 3**something")
-  let tree = parse(tokens)
-  printTree(tree)
