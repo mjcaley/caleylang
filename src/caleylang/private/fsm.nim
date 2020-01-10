@@ -388,14 +388,13 @@ behavior(lexerMachine):
     if context.match("0") and context.matchNextAny(DigitChars):
       tokens.add(initToken(tkError, pos, "Integer cannot start with a 0"))
       discard context.appendWhile(DigitChars)
-      return
-
-    let number = context.appendWhile(DigitChars)
-
-    if context.match(".") and context.matchNextAny(DigitChars):
-      tokens.add(initToken(tkFloat, pos, number & context.advance & context.appendWhile(DigitChars)))
     else:
-      tokens.add(initToken(tkDecInteger, pos, number))
+      let number = context.appendWhile(DigitChars)
+
+      if context.match(".") and context.matchNextAny(DigitChars):
+        tokens.add(initToken(tkFloat, pos, number & context.advance & context.appendWhile(DigitChars)))
+      else:
+        tokens.add(initToken(tkDecInteger, pos, number))
 
 behavior(lexerMachine):
   ini: pStrings
