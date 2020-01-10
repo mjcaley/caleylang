@@ -24,13 +24,18 @@ type
     members*: seq[Token]
 
   FunctionDecl* = object
-    name*: string
+    name*: Token
     parameters*: seq[Token]
-    returnType: Option[Token]
+    returnType*: Option[Token]
 
   FunctionStatement* = ref object of Statement
     decl*: FunctionDecl
     statements*: seq[Statement]
+
+  BranchStatement* = ref object of Statement
+    condition*: Expression
+    then*: seq[Statement]
+    elseBranch*: BranchStatement
 
 
   Expression* = ref object of RootObj
@@ -60,12 +65,6 @@ type
     value*: Token
 
 
-  Branch* = ref object
-    condition*: Expression
-    then*: seq[Statement]
-    elseBranch*: Branch
-
-
 proc newImportStatement*(modules: seq[Token]) : ImportStatement =
   result = new ImportStatement
   result.modules = modules
@@ -73,6 +72,12 @@ proc newImportStatement*(modules: seq[Token]) : ImportStatement =
 proc newExpressionStatement*(e: Expression) : ExpressionStatement =
   result = new ExpressionStatement
   result.expression = e
+
+proc newBranchStatement*(condition: Expression, then: seq[Statement], elseBranch: BranchStatement) : BranchStatement =
+  result.condition = condition
+  result.then = then
+  result.elseBranch = elseBranch
+  
 
 proc newUnaryExpression*(operator: Token, operand: Expression) : UnaryExpression =
   result = new UnaryExpression
@@ -103,8 +108,3 @@ proc newSubscriptExpression*(operand, subscript: Expression) : SubscriptExpressi
 proc newAtom*(t: Token) : Atom =
   result = new Atom
   result.value = t
-
-proc newBranch*(condition: Expression, then: seq[Statement], elseBranch: Branch) : Branch =
-  result.condition = condition
-  result.then = then
-  result.elseBranch = elseBranch

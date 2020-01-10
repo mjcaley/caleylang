@@ -1,3 +1,4 @@
+import options
 import private/parse_tree, token, parser, lexer
 
 type
@@ -56,6 +57,7 @@ proc print(s: Start, p: var PrinterState) =
     p.printChild(node)
   p.pop
 
+# Statements
 method print(s: Statement, p: var PrinterState) {.base.} =
   p.printMe "Statement"
 
@@ -71,6 +73,54 @@ method print(e: ExpressionStatement, p: var PrinterState) =
   p.printChild(e.expression)
   p.pop
 
+method print(a: AssignmentStatement, p: var PrinterState) =
+  p.printMe "AssignmentStatement"
+  p.push 3
+  p.printChild(a.left)
+  p.printChild(a.operator)
+  p.printChild(a.right)
+  p.pop
+
+method print(s: StructStatement, p: var PrinterState) =
+  p.printMe "StructStatement"
+  p.push s.members.len
+  for child in s.members:
+    p.printChild(child)
+  p.pop
+
+method print(f: FunctionStatement, p: var PrinterState) =
+  p.printMe "FunctionStatement"
+  p.push 1 + f.statements.len
+  p.printChild(f.decl)
+  for statement in f.statements:
+    p.printChild(statement)
+  p.pop
+
+method print(b: BranchStatement, p: var PrinterState) =
+  p.printMe "BranchStatement"
+  p.push 2 + b.then.len
+  p.printChild(b.condition)
+  for statement in b.then:
+    p.printChild(statement)
+  p.printChild(b.elseBranch)
+  p.pop
+
+# Utility
+proc print(f: FunctionDecl, p: var PrinterState) =
+  p.printMe "FunctionDecl"
+  var children = 1 + f.parameters.len
+  if f.returnType.isSome:
+    inc children
+
+  p.push children
+  p.printChild(f.name)
+  for param in f.parameters:
+    p.printChild(param)
+  if f.returnType.isSome:
+    p.printChild(f.returnType.get())
+  p.pop
+
+# Expressions
 method print(e: Expression, p: var PrinterState) {.base.} =
   p.printMe "Expression"
 
@@ -80,6 +130,35 @@ method print(b: BinaryExpression, p: var PrinterState) =
   p.printChild(b.left)
   p.printChild(b.operator)
   p.printChild(b.right)
+  p.pop
+
+method print(u: UnaryExpression, p: var PrinterState) =
+  p.printMe "UnaryExpression"
+  p.push 2
+  p.printChild(u.operator)
+  p.printChild(u.operand)
+  p.pop
+
+method print(c: CallExpression, p: var PrinterState) =
+  p.printMe "CallExpression"
+  p.push 1 + c.parameters.len
+  p.printChild(c.operand)
+  for param in c.parameters:
+    p.printChild(param)
+  p.pop
+
+method print(f: FieldAccessExpression, p: var PrinterState) =
+  p.printMe "FieldAccessExpression"
+  p.push 2
+  p.printChild(f.operand)
+  p.printChild(f.field)
+  p.pop
+
+method print(s: SubscriptExpression, p: var PrinterState) =
+  p.printMe "SubscriptExpression"
+  p.push 2
+  p.printChild(s.operand)
+  p.printChild(s.subscript)
   p.pop
 
 method print(a: Atom, p: var PrinterState) =
@@ -99,17 +178,12 @@ proc printChild[T](p: var PrinterState, child: T) =
   p.decChildren
   print(child, p)
 
-# on entry print this node's header and name
-# decrement number of children for top
-# push a new Node with the number of children
-# on exit pop number of children
-
 proc printTree*[T](tree: T) =
   var p = initPrinterState()
   print(tree, p)
 
 
 when isMainModule:
-  let tokens = lexString("1 + 2")
+  let tokens = lexString("(1 + 2) * 3**something")
   let tree = parse(tokens)
   printTree(tree)
