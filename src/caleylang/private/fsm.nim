@@ -492,6 +492,8 @@ behavior(lexerMachine):
       discard context.indents.pop
       tokens.add(initToken(tkDedent, pos))
 
+    tokens.add(initToken(tkEndOfFile, pos))
+
 
 synthesize(lexerMachine):
   proc observeLexer(context: var Context, tokens: var seq[Token])
