@@ -398,7 +398,6 @@ suite "Word state":
 suite "Number state":
   test "Integer starting with 0 is an error":
     let results = lexString("0123")
-    echo results
 
     check:
       results.len == 4
