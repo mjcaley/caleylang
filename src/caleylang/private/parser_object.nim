@@ -6,6 +6,12 @@ type
     current*: Option[Token]
     next*: Option[Token]
     tokens: iterator() : Token
+    errors*: seq[ref ParsingError]
+    
+  ParsingError* = object of Exception
+    token: Token
+  
+  UnexpectedTokenError* = object of ParsingError
 
 
 proc citems(s: seq[Token]) : iterator() : Token =
@@ -22,7 +28,17 @@ proc advance*(self: var Parser) : Option[Token] =
   else:
     self.next = some next
 
+# proc logError*(self: var Parser, error: ref ParsingError, token: Token) =
+#   self.errors.add (error, token)
+
+template logError*(self: var Parser, exception: ref ParsingError) =
+  self.errors.add(exception)
+
+proc newUnexpectedTokenError*(message: string, token: Token) : ref UnexpectedTokenError =
+  result = newException(UnexpectedTokenError, message)
+  result.token = token
+
 proc initParser*(tokens: seq[Token]) : Parser =
-  result = Parser(tokens: citems(tokens))
+  result = Parser(tokens: citems(tokens), errors: @[])
   discard result.advance()
   discard result.advance()
