@@ -1,9 +1,26 @@
-import unittest
+import options, unittest
 import caleylang/private/[parser_impl, parser_object, parse_tree], caleylang/[position, token]
 
 
 const pos = initPosition()
 const fortyTwo = initToken(tkDecInteger, pos, "42")
+
+suite "Error recovery":
+  test "Recover to next statement":
+    var expected = initToken(tkDecInteger, pos, "1")
+    var p = initParser(@[fortyTwo, initToken(tkNewline), expected])
+    p.recoverToNextStatement()
+
+    require p.current.isSome()
+    check expected == p.current.get()
+
+  test "Recover to next block":
+    var expected = initToken(tkDecInteger, pos, "1")
+    var p = initParser(@[fortyTwo, initToken(tkDedent), expected])
+    p.recoverToNextStatement()
+
+    require p.current.isSome()
+    check expected == p.current.get()
 
 suite "Atom rule":
   test "Parses DecInteger token":
@@ -602,11 +619,17 @@ suite "Statements rule":
     expect UnexpectedTokenError:
       discard p.statements()
 
-  test "Raises exception when EndOfFile instead of Dedent not found":
+  test "Logs error when EndOfFile instead of Dedent not found":
     var p = initParser(@[initToken(tkIndent), fortyTwo, initToken(tkNewline), initToken(tkEndOfFile)])
 
-    expect UnexpectedTokenError:
-      discard p.statements()
+    let statements = p.statements()
+
+    require:
+      1 == len(statements)
+      1 == len(p.errors)
+    
+    check:
+      fortyTwo == statements[0].ExpressionStatement.expression.Atom.value
 
 suite "Start rule":
   test "Start parses a statement":
@@ -615,8 +638,10 @@ suite "Start rule":
 
     check fortyTwo == start.statements[0].ExpressionStatement.expression.Atom.value
 
-  test "Raises exception when EndOfFile token not present":
+  test "Logs error when EndOfFile token not present":
     var p = initParser(@[initToken(tkIndent), fortyTwo, initToken(tkDedent)])
+    let tree = p.start()
 
-    expect UnexpectedTokenError:
-      discard p.start()
+    require 1 == len(p.errors)
+    check:
+      fortyTwo == tree.statements[0].ExpressionStatement.expression.Atom.value

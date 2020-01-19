@@ -1,4 +1,4 @@
-import options, sequtils
+import options
 import ../token
 import parser_object, parser_utility, parse_tree
 
@@ -209,19 +209,12 @@ proc statements*(self: var Parser) : seq[Statement] =
         discard self.advance()
         break
 
-      of tkInvalid:
+      of tkInvalid, tkEndOfFile:
         self.logError(newUnexpectedTokenError(
-            "Expected dedent at end of statement block, but found an invalid token",
+            "Expected dedent at end of statement block",
             self.current.tokenOrInvalid)
         )
         discard self.advance()
-        break
-
-      of tkEndOfFile:
-        self.logError(
-          newUnexpectedTokenError("Expected dedent at end of statement block, but found end of file",
-          self.current.tokenOrInvalid)
-        )
         break
 
       else:
@@ -234,13 +227,16 @@ proc statements*(self: var Parser) : seq[Statement] =
             discard self.advance()
 
 proc start*(self: var Parser) : Start =
-  if not self.current.match(tkEndOfFile):
-    result.statements = self.statements()
+  try:
+    if not self.current.match(tkEndOfFile):
+      result.statements = self.statements()
+  except UnexpectedTokenError as e:
+    self.logError(e)
 
   if self.current.match(tkEndOfFile):
     discard self.advance()
   else:
-    raise newUnexpectedTokenError("Expected end of file", self.current.tokenOrInvalid)
+    self.logError(newUnexpectedTokenError("Expected end of file", self.current.tokenOrInvalid))
 
 proc parse*(tokens: seq[Token]) : ParseResult =
   var parser = initParser(tokens)
