@@ -619,8 +619,20 @@ suite "Statements rule":
     expect UnexpectedTokenError:
       discard p.statements()
 
-  test "Logs error when EndOfFile instead of Dedent not found":
+  test "Logs error when EndOfFile instead of Dedent found":
     var p = initParser(@[initToken(tkIndent), fortyTwo, initToken(tkNewline), initToken(tkEndOfFile)])
+
+    let statements = p.statements()
+
+    require:
+      1 == len(statements)
+      1 == len(p.errors)
+    
+    check:
+      fortyTwo == statements[0].ExpressionStatement.expression.Atom.value
+
+  test "Logs error when Invalid instead of Dedent found":
+    var p = initParser(@[initToken(tkIndent), fortyTwo, initToken(tkNewline), initToken(tkInvalid)])
 
     let statements = p.statements()
 
