@@ -1,5 +1,6 @@
-import options, unittest
-import caleylang/private/[parser_impl, parser_object, parse_tree], caleylang/[position, token]
+import unittest
+import caleylang/private/parser/parser
+import caleylang/parse_tree_printer
 
 
 const pos = initPosition()
@@ -8,7 +9,7 @@ const fortyTwo = initToken(tkDecInteger, pos, "42")
 suite "Error recovery":
   test "Recover to next statement":
     var expected = initToken(tkDecInteger, pos, "1")
-    var p = initParser(@[fortyTwo, initToken(tkNewline), expected])
+    var p = initParser(@[fortyTwo, initToken(tkNewline), expected, initToken(tkEndOfFile)])
     p.recoverToNextStatement()
 
     require p.current.isSome()
@@ -16,8 +17,8 @@ suite "Error recovery":
 
   test "Recover to next block":
     var expected = initToken(tkDecInteger, pos, "1")
-    var p = initParser(@[fortyTwo, initToken(tkDedent), expected])
-    p.recoverToNextStatement()
+    var p = initParser(@[fortyTwo, initToken(tkDedent), expected, initToken(tkEndOfFile)])
+    p.recoverToNextBlock()
 
     require p.current.isSome()
     check expected == p.current.get()
@@ -171,6 +172,8 @@ suite "Product expression rule":
     let divide = initToken(tkDivide, pos)
     var p = initParser(@[fortyTwo, divide, fortyTwo])
     let e = p.productExpression()
+
+    printTree(e)
 
     check:
       fortyTwo == e.BinaryExpression.left.Atom.value

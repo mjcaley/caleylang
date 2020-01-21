@@ -1,5 +1,5 @@
-import options, unicode, unittest
-import caleylang/private/lexer_stream, caleylang/position
+import unittest
+import caleylang/private/parser/lexer_stream
 
 
 test "First character from string":

@@ -1,5 +1,5 @@
-import options, unittest
-import caleylang / [private/parser_object, token], caleylang/position
+import unittest
+import caleylang/private/parser/parser
 
 
 suite "Default parser":

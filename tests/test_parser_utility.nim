@@ -1,5 +1,5 @@
-import options, unittest
-import caleylang/private/parser_utility, caleylang/token
+import unittest
+import caleylang/private/parser/parser
 
 
 test "match successful":

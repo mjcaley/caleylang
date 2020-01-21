@@ -1,5 +1,5 @@
 import unittest
-import caleylang/position
+import caleylang/private/parser/position
 
 
 test "Position defaults to line 1, column 1":

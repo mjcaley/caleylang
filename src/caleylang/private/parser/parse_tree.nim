@@ -1,5 +1,5 @@
 import options
-import ../token
+import token
 
 
 type

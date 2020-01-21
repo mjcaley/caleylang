@@ -1,19 +1,33 @@
 import options
-import lexer_stream, ../position, stack
-export position.Position
+import lexer_stream, position
+export lexer_stream, position
 
 type
   Context* = object
     stream: LexerStream
-    indents*: Stack[Natural]
-    brackets*: Stack[string]
+    indents*: seq[Natural]
+    brackets*: seq[string]
     currentChar: string
     currentPos: Position
     nextChar: string
     nextPos: Position
 
   EmptyStackError* = object of Exception
+  
 
+# Stack procs
+  
+proc top*[T](s: seq[T]) : T =
+  result = s[s.high]
+
+proc empty*[T](s: seq[T]) : bool =
+  result = s.len == 0
+
+proc push*[T](s: var seq[T], value: T) =
+  s.add(value)
+
+
+# Context procs
 
 proc initContext*(stream: LexerStream) : Context =
   Context(
@@ -42,7 +56,7 @@ proc advance*(self: var Context) : string =
     self.nextChar = ""
 
 proc pushIndent*(self: var Context, indent: Natural) =
-  self.indents.add(indent)
+  self.indents.push(indent)
 
 proc popIndent*(self: var Context) : Natural =
   try:
@@ -57,7 +71,7 @@ proc lastIndent*(self: Context) : Natural =
     raise newException(EmptyStackError, "Stack is empty")
 
 proc pushBracket*(self: var Context, bracket: string) =
-  self.brackets.add(bracket)
+  self.brackets.push(bracket)
 
 proc popBracket*(self: var Context) : string =
   try: 

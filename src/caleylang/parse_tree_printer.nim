@@ -1,5 +1,5 @@
 import options
-import private/parse_tree, token, parser, lexer
+import private/parser/parse_tree, private/parser/token
 
 type
   PrinterState = object

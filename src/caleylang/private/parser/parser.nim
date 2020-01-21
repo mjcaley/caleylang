@@ -1,16 +1,74 @@
 import options
-import ../token
-import parser_object, parser_utility, parse_tree
+import parse_tree, position, token
+export parse_tree, token, position, options
 
 
 type
+  Parser* = object
+    current*: Option[Token]
+    next*: Option[Token]
+    tokens: iterator() : Token
+    errors*: seq[ref ParsingError]
+    
+  ParsingError* = object of Exception
+    token: Token
+  
+  UnexpectedTokenError* = object of ParsingError
+  
   ParseResult* = object
     tree*: Start
     errors*: seq[ref ParsingError]
 
 
+# Parser
+
+proc citems(s: seq[Token]) : iterator() : Token
+proc advance*(self: var Parser) : Option[Token]
+
+proc initParser*(tokens: seq[Token]) : Parser =
+  result = Parser(tokens: citems(tokens), errors: @[])
+  discard result.advance()
+  discard result.advance()
+
+proc citems(s: seq[Token]) : iterator() : Token =
+  result = iterator() : Token =
+    for i in s:
+      yield i
+
+
+# Parser utility
+
+proc advance*(self: var Parser) : Option[Token] =
+  result = self.current
+  self.current = self.next
+  let next = self.tokens()
+  if self.tokens.finished:
+    self.next = none Token
+  else:
+    self.next = some next
+
 proc tokenOrInvalid(self: Option[Token]) : Token =
   result = self.get(initToken tkInvalid)
+
+proc match*(self: Option[Token], tokenTypes: varargs[TokenType]) : bool =
+  let token = self.tokenOrInvalid().kind
+
+  for tokenType in tokenTypes:
+    if tokenType == token:
+      result = true
+      break
+
+
+# Error handling
+
+proc newUnexpectedTokenError*(message: string, token: Token) : ref UnexpectedTokenError =
+  result = newException(UnexpectedTokenError, message)
+  result.token = token
+
+template logError*(self: var Parser, exception: ref ParsingError) =
+  self.errors.add(exception)
+  
+# Recursive descent parser
 
 proc recoverToNextStatement*(self: var Parser) =
   while not self.current.match(tkNewline, tkEndOfFile, tkDedent):
@@ -21,12 +79,13 @@ proc recoverToNextBlock*(self: var Parser) =
   var indents = 0
   while not self.current.match(tkEndOfFile):
     case self.current.tokenOrInvalid.kind:
-      of tkEndOfFile:
+      of tkEndOfFile, tkInvalid:
         break
       of tkIndent:
         inc indents
       of tkDedent:
         if indents == 0:
+          discard self.advance()
           break
         dec indents
       else: discard

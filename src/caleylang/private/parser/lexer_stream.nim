@@ -1,6 +1,6 @@
 import options, streams, unicode
-import ../position
-export Position, position.line, position.column
+import position
+export options, unicode, position
 
 type
   LexerStream* = object
