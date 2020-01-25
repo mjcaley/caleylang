@@ -1,5 +1,6 @@
 import options
 import token
+export options, token, token.position
 
 
 type

@@ -15,9 +15,11 @@ type
   
   UnexpectedTokenError* = object of ParsingError
   
+  ParserError* = tuple[name: cstring, message: string, position: Position]
+
   ParseResult* = object
     tree*: Start
-    errors*: seq[ref ParsingError]
+    errors*: seq[ParserError]
 
 
 # Parser
@@ -300,4 +302,9 @@ proc start*(self: var Parser) : Start =
 proc parse*(tokens: seq[Token]) : ParseResult =
   var parser = initParser(tokens)
   let tree = parser.start()
-  result = ParseResult(tree: tree, errors: parser.errors)
+
+  var errors = newSeq[ParserError]()
+  for error in parser.errors:
+    errors.add((error.name, error.msg, error.token.position))
+
+  result = ParseResult(tree: tree, errors: errors)

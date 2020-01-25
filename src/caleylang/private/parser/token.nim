@@ -1,4 +1,5 @@
 import position
+export position
 
 type
   TokenType* = enum
