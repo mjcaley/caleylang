@@ -33,6 +33,7 @@ type
 
   LexerMode = enum
     modeDefault,
+    modeNegative,
     modeDigit,
     modeDec,
     modeBin,
@@ -82,6 +83,9 @@ proc lexString(data: string) : seq[AsmToken] =
         of ':':
           result.add(AsmToken(kind: asmColon, value: "", line: lexer.lineNum))
           discard lexer.next()
+        of '-':
+          lexer.append()
+          lexer.mode = modeNegative
         of '0':
           lexer.append()
           lexer.mode = modeDigit
@@ -99,6 +103,16 @@ proc lexString(data: string) : seq[AsmToken] =
           discard lexer.next()
         else:
           discard lexer.next()
+    of modeNegative:
+      case lexer.current:
+        of '0':
+          lexer.append()
+          lexer.mode = modeDigit
+        of '1', '2', '3', '4', '5', '6', '7', '8', '9':
+          lexer.append()
+          lexer.mode = modeDec
+        else:
+          result.add(AsmToken(kind: asmError, value: lexer.consume(), line: lexer.lineNum))
     of modeDigit:
       case lexer.current:
         of 'x':
@@ -196,9 +210,15 @@ type
   Parser = object
     current: AsmToken
     tokens: iterator(): AsmToken
-    errors: seq[tuple[message: string, line: Natural]]
+    errors: seq[tuple[message: string, line: int]]
+
+  ParseResults = object
+    program: Program
+    errors: seq[tuple[message: string, line: int]]
 
   ParseError = object of Exception
+    line: int
+    message: string
 
   Program = object
     functions: seq[Function]
@@ -288,11 +308,19 @@ proc initParser(tokens: seq[AsmToken]) : Parser =
     for token in tokens:
       yield token
   result.current = result.tokens()
-  result.errors = newSeq[tuple[message: string, line: Natural]]()
+  result.errors = newSeq[tuple[message: string, line: int]]()
 
 proc next(p: var Parser) : AsmToken =
   result = p.current
   p.current = p.tokens()
+
+proc newParseError(message: string, line: int) : ref ParseError =
+  result = new(ParseError)
+  result.message = message
+  result.line = line
+
+proc addError(p: var Parser, message: string, line: int) =
+  p.errors.add((message: message, line: line))
 
 proc recoverTo(p: var Parser, kinds: varargs[AsmTokenKind]) =
   while not (p.current.kind in kinds):
@@ -308,7 +336,7 @@ proc intFormat(s: string) : IntegerFormat =
 
 proc unsignedIntegerOperand[T](p: var Parser) : Operand =
   if p.current.kind != asmInteger:
-    raise newException(ParseError, "Invalid token")
+    raise newParseError("Expected integer value", p.current.line)
 
   var number: T
   try:
@@ -320,7 +348,7 @@ proc unsignedIntegerOperand[T](p: var Parser) : Operand =
       of intDec:
         number = T(parseBiggestUInt(p.current.value))
   except ValueError:
-    raise newException(ParseError, "Could not parse integer value")
+    raise newParseError("Could not convert integer value", p.current.line)
   
   result = Operand(kind: opUnsignedInteger, uinteger: number)
 
@@ -328,7 +356,7 @@ proc unsignedIntegerOperand[T](p: var Parser) : Operand =
 
 proc signedIntegerOperand[T](p: var Parser) : Operand =
   if p.current.kind != asmInteger:
-    raise newException(ParseError, "Invalid token")
+    raise newParseError("Expected integer value", p.current.line)
 
   var number: T
   try:
@@ -340,7 +368,7 @@ proc signedIntegerOperand[T](p: var Parser) : Operand =
       of intDec:
         number = T(parseBiggestInt(p.current.value))
   except ValueError:
-    raise newException(ParseError, "Could not parse integer value")
+    raise newParseError("Could not convert integer value", p.current.line)
 
   result = Operand(kind: opSignedInteger, integer: number)
 
@@ -348,12 +376,12 @@ proc signedIntegerOperand[T](p: var Parser) : Operand =
 
 proc floatOperand(p: var Parser) : Operand =
   if p.current.kind != asmFloat:
-    raise newException(ParseError, "Invalid token")
+    raise newParseError("Expected float value", p.current.line)
 
   var number: float64
   let success = parseBiggestFloat(p.current.value, number)
   if success == 0:
-    raise newException(ParseError, "Could not parse float value")
+    raise newParseError("Could not convert float value", p.current.line)
   
   result = Operand(kind: opFloat, floatingPoint: number)
 
@@ -361,7 +389,7 @@ proc floatOperand(p: var Parser) : Operand =
 
 proc stringOperand(p: var Parser) : Operand =
   if p.current.kind != asmString:
-    raise newException(ParseError, "Invalid token")
+    raise newParseError("Expected string value", p.current.line)
 
   result = Operand(kind: opString, str: p.current.value)
 
@@ -392,19 +420,19 @@ proc operand(p: var Parser, typeOf: InstructionType) : Operand =
         of tyI64:
           result = signedIntegerOperand[int64](p)
         else:
-          raise newException(ParseError, "Type didn't match")
+          raise newParseError("Expected type didn't match found type", p.current.line)
     of asmFloat:
       case typeOf:
         of tyF32, tyF64:
           result = p.floatOperand()
         else:
-          raise newException(ParseError, "Type didn't match")
+          raise newParseError("Expected type didn't match found type", p.current.line)
     else:
-      raise newException(ParseError, "Invalid type")
+      raise newParseError("Unexpected token type", p.current.line)
 
 proc operandType(p: var Parser) : InstructionType =
   if p.current.kind != asmType:
-    raise newException(ParseError, "Invalid token")
+    raise newParseError("Expected type declaration", p.current.line)
   
   let insType = p.next()
   case insType.value:
@@ -433,11 +461,11 @@ proc operandType(p: var Parser) : InstructionType =
     of ".f64":
       result = tyF64
     else:
-      raise newException(ParseError, "Invalid type")
+      raise newParseError("Not a valid type name", p.current.line)
 
 proc instructionStatement(p: var Parser) : Statement =
   if p.current.kind != asmInstruction:
-    raise newException(ParseError, "Invalid token")
+    raise newParseError("Expected instruction", p.current.line)
 
   let instructionToken = p.next()
   result = Statement(kind: stmtInstruction, line: instructionToken.line)
@@ -482,7 +510,7 @@ proc instructionStatement(p: var Parser) : Statement =
       result.typeOf = instructionType
       case instructionType:
         of tyVoid:
-          raise newException(ParseError, "Invalid type")
+          raise newParseError("Push instruction expects a type", p.current.line)
         else:
           result.operands.add(p.operand(instructionType))
     of insAdd, insSub, insMul, insDiv, insMod:
@@ -490,7 +518,7 @@ proc instructionStatement(p: var Parser) : Statement =
       result.typeOf = instructionType
       case instructionType:
         of tyVoid:
-          raise newException(ParseError, "Invalid type")
+          raise newParseError("Instruction expects a type", p.current.line)
         else:
           discard
     of insCall, insJump, insJumpEq, insJumpNEq, insNewObj:
@@ -500,24 +528,24 @@ proc instructionStatement(p: var Parser) : Statement =
         of tyAddr:
           result.operands.add(p.operand(instructionType))
         else:
-          raise newException(ParseError, "Invalid type")
+          raise newParseError("Not a supported type", p.current.line)
   # TODO: Support constant reference
 
 proc labelStatement(p: var Parser) : Statement =
   if p.current.kind != asmIdentifier:
-    raise newException(ParseError, "Invalid token")
+    raise newParseError("Label name should be an identifier", p.current.line)
 
   let label = p.next()
   
   if p.current.kind != asmEqual:
-    raise newException(ParseError, "Expected =")
+    raise newParseError("Expected =", p.current.line)
   discard p.next()
 
   case p.current.kind:
-    of asmIdentifier:
-      result = Statement(kind: stmtLabel, name: p.current.value, line: label.line)
+    of asmAddress, asmFloat, asmInteger, asmString:
+      result = Statement(kind: stmtLabel, name: p.current.value, line: label.line) 
     else:
-      raise newException(ParseError, "Invalid token")
+      raise newParseError("Expected value", p.current.line)
   discard p.next()
 
 proc statement(p: var Parser) : Statement =
@@ -527,43 +555,43 @@ proc statement(p: var Parser) : Statement =
     of asmIdentifier:
       result = p.labelStatement()
     else:
-      raise newException(ParseError, "Invalid token")
+      raise newParseError("Statement should be an instruction or label", p.current.line)
 
 proc function(p: var Parser) : Function =
   if p.current.kind != asmFunc:
-    raise newException(ParseError, "Invalid token")
+    raise newParseError("Expected function keyword", p.current.line)
   discard p.next()
 
   if p.current.kind != asmIdentifier:
-    raise newException(ParseError, "Expected name")
+    raise newParseError("Expected function name", p.current.line)
   let name = p.next()
 
   if p.current.kind != asmColon:
-    raise newException(ParseError, "Expected name")
+    raise newParseError("Expected :", p.current.line)
   discard p.next()
 
   if p.current.kind != asmParam and p.current.value != "args":
-    raise newException(ParseError, "Expected args parameter")
+    raise newParseError("Expected args parameter", p.current.line)
   discard p.next()
 
   if p.current.kind != asmEqual:
-    raise newException(ParseError, "Expected =")
+    raise newParseError("Expected =", p.current.line)
   discard p.next()
 
   if p.current.kind != asmInteger:
-    raise newException(ParseError, "Invalid token")
+    raise newParseError("Expected integer value", p.current.line)
   let numArgs = p.next()
 
   if p.current.kind != asmParam and p.current.value != "locals":
-    raise newException(ParseError, "Expected locals parameter")
+    raise newParseError("Expected locals parameter", p.current.line)
   discard p.next()
 
   if p.current.kind != asmEqual:
-    raise newException(ParseError, "Expected =")
+    raise newParseError("Expected =", p.current.line)
   discard p.next()
 
   if p.current.kind != asmInteger:
-    raise newException(ParseError, "Invalid token")
+    raise newParseError("Expected integer value", p.current.line)
   let numLocals = p.next()
 
   result.name = name.value
@@ -574,18 +602,19 @@ proc function(p: var Parser) : Function =
   while not (p.current.kind in {asmFunc, asmEndOfFile}):
     try:
       result.statements.add(p.statement())
-    except ParseError:
+    except ParseError as e:
+      p.addError(e.message, e.line)
       p.recoverTo(asmFunc, asmEndOfFile)
 
 proc constant(p: var Parser) : tuple[name: string, value: Operand] =
   if p.current.kind != asmConst:
-    raise newException(ParseError, "Invalid token")
+    raise newParseError("Expected const keyword", p.current.line)
   discard p.next()
 
   let typeOf = p.operandType()
 
   if p.current.kind != asmIdentifier:
-    raise newException(ParseError, "Invalid token")
+    raise newParseError("Expected identifier", p.current.line)
   let name = p.next()
 
   let value = p.operand(typeOf)
@@ -602,13 +631,16 @@ proc program(p: var Parser) : Program =
           let constantVal = p.constant()
           result.constants.add(constantVal.name, constantVal.value)
         else:
-          raise newException(ParseError, "Invalid token")
-    except ParseError:
+          raise newParseError("Expected function or constant", p.current.line)
+    except ParseError as e:
+      p.addError(e.message, e.line)
       p.recoverTo(asmFunc, asmConst, asmEndOfFile)
 
-proc parse(tokens: seq[AsmToken]) : Program =
+proc parse(tokens: seq[AsmToken]) : ParseResults =
   var parser = initParser(tokens)
-  result = parser.program()
+  let program = parser.program()
+  result.program = program
+  result.errors = parser.errors
 
 # .func NAME args=0 locals=0
 # label_name:
@@ -617,6 +649,6 @@ proc parse(tokens: seq[AsmToken]) : Program =
 # type = byte, addr, i32, etc., str
 
 when isMainModule:
-  var line = ".func main: args=1, locals=2\npush.i32 40\npush.i32 2\nadd.i32\n"
+  var line = ".func main: args=1, locals=2\npush.i32 40\npush.i32 -2\nadd.i32\npush.u8 -1"
   let tokens = lexString(line)
   echo parse(tokens)
