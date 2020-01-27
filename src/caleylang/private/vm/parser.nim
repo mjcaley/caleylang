@@ -1,4 +1,4 @@
-import parseutils, strutils, tables
+import strutils
 import lexer
 
 ## INTEGER = ["-"] "0".."9"+
@@ -8,7 +8,7 @@ import lexer
 ##
 ## grammar = ( function | constant )*
 ##
-## constant = ".const" "=" value
+## constant = ".const" type "=" value
 ## value = INTEGER | NAME | FLOAT | STRING
 ##
 ## function_definition = ".func" NAME ":" "args" "=" INTEGER "locals" "=" INTEGER
@@ -17,14 +17,14 @@ import lexer
 ## statement = instruction_statement | label_statement
 ##
 ## label_statement = NAME ":"
-
-## instruction_statement = instruction type? operand*
+##
+## instruction_statement = instruction (type operand*)?
 ##
 ## instruction = "halt" | "nop" | "push" | "pop" | "add" | "mul" | "div" |
 ##               "mod" | "jmp" | "jmpeq" | "jmpneq" | "newobj" | "call" |
 ##               "ret"
-## type = "byte" | "addr" | "i8" | "u8" | "i16" | "u16" | "i32" | "u32" |
-##        "i64" | "u64" | "f32" | "f64"
+## type = ".byte" | ".addr" | ".i8" | ".u8" | ".i16" | ".u16" | ".i32" | ".u32" |
+##        ".i64" | ".u64" | ".f32" | ".f64" | ".str"
 ##
 ## operand = VALUE
 
@@ -45,7 +45,7 @@ type
 
   Program* = object
     functions*: seq[Function]
-    constants*: Table[string, Operand]
+    constants*: seq[Constant]
 
   Function* = object
     name*: string
@@ -73,6 +73,7 @@ type
 
   InstructionType* = enum
     tyVoid,
+    tyConstant,
     tyByte,
     tyAddr,
     tyI8,
@@ -85,6 +86,11 @@ type
     tyU64,
     tyF32,
     tyF64
+
+  Constant* = object
+    name: string
+    typeOf: InstructionType
+    value: Operand
 
   StatementKind* = enum
     stmtLabel,
@@ -100,31 +106,24 @@ type
       name*: string
     line*: int
 
-  IntegerFormat* = enum
-    intHex,
-    intBin,
-    intDec
+  # IntegerFormat* = enum
+  #   intHex,
+  #   intBin,
+  #   intDec
 
   OperandKind* = enum
-    opSignedInteger,
-    opUnsignedInteger,
+    opInteger,
     opFloat,
     opString,
-    opConstant
+    opIdentifier,
 
   Operand* = object
-    case kind*: OperandKind
-    of opSignedInteger:
-      integer*: BiggestInt
-    of opUnsignedInteger:
-      uinteger*: BiggestUInt
-    of opFloat:
-      floatingPoint*: float64
-    of opString:
-      str*: string
-    of opConstant:
-      label*: string
+    kind*: OperandKind
+    value*: string
+    line*: int
 
+
+# Utility
 
 proc initParser(tokens: seq[AsmToken]) : Parser =
   result.tokens = iterator() : AsmToken =
@@ -149,109 +148,22 @@ proc recoverTo(p: var Parser, kinds: varargs[AsmTokenKind]) =
   while not (p.current.kind in kinds):
     discard p.next()
 
-proc intFormat(s: string) : IntegerFormat =
-  if s.startsWith("0x"):
-    result = intHex
-  elif s.startsWith("0b"):
-    result = intBin
-  else:
-    result = intDec
+# Parser
 
-proc unsignedIntegerOperand[T](p: var Parser) : Operand =
-  if p.current.kind != asmInteger:
-    raise newParseError("Expected integer value", p.current.line)
-
-  var number: T
-  try:
-    case intFormat(p.current.value):
-      of intHex:
-        number = fromHex[T](p.current.value)
-      of intBin:
-        number = fromBin[T](p.current.value)
-      of intDec:
-        number = T(parseBiggestUInt(p.current.value))
-  except ValueError:
-    raise newParseError("Could not convert integer value", p.current.line)
-  
-  result = Operand(kind: opUnsignedInteger, uinteger: number)
-
-  discard p.next()
-
-proc signedIntegerOperand[T](p: var Parser) : Operand =
-  if p.current.kind != asmInteger:
-    raise newParseError("Expected integer value", p.current.line)
-
-  var number: T
-  try:
-    case intFormat(p.current.value):
-      of intHex:
-        number = fromBin[T](p.current.value)
-      of intBin:
-        number = fromBin[T](p.current.value)
-      of intDec:
-        number = T(parseBiggestInt(p.current.value))
-  except ValueError:
-    raise newParseError("Could not convert integer value", p.current.line)
-
-  result = Operand(kind: opSignedInteger, integer: number)
-
-  discard p.next()
-
-proc floatOperand(p: var Parser) : Operand =
-  if p.current.kind != asmFloat:
-    raise newParseError("Expected float value", p.current.line)
-
-  var number: float64
-  let success = parseBiggestFloat(p.current.value, number)
-  if success == 0:
-    raise newParseError("Could not convert float value", p.current.line)
-  
-  result = Operand(kind: opFloat, floatingPoint: number)
-
-  discard p.next()
-
-proc stringOperand(p: var Parser) : Operand =
-  if p.current.kind != asmString:
-    raise newParseError("Expected string value", p.current.line)
-
-  result = Operand(kind: opString, str: p.current.value)
-
-  discard p.next()
-
-proc operand(p: var Parser, typeOf: InstructionType) : Operand =
+proc operand(p: var Parser) : Operand =
   case p.current.kind:
     of asmInteger:
-      case typeOf:
-        of tyByte:
-          result = unsignedIntegerOperand[byte](p)
-        of tyU8:
-          result = unsignedIntegerOperand[uint8](p)
-        of tyU16:
-          result = unsignedIntegerOperand[uint16](p)
-        of tyU32:
-          result = unsignedIntegerOperand[uint32](p)
-        of tyU64:
-          result = unsignedIntegerOperand[uint64](p)
-        of tyAddr:
-          result = signedIntegerOperand[int](p)
-        of tyI8:
-          result = signedIntegerOperand[int8](p)
-        of tyI16:
-          result = signedIntegerOperand[int16](p)
-        of tyI32:
-          result = signedIntegerOperand[int32](p)
-        of tyI64:
-          result = signedIntegerOperand[int64](p)
-        else:
-          raise newParseError("Expected type didn't match found type", p.current.line)
+      result = Operand(kind: opInteger, value: p.current.value, line: p.current.line)
     of asmFloat:
-      case typeOf:
-        of tyF32, tyF64:
-          result = p.floatOperand()
-        else:
-          raise newParseError("Expected type didn't match found type", p.current.line)
+      result = Operand(kind: opFloat, value: p.current.value, line: p.current.line)
+    of asmString:
+      result = Operand(kind: opString, value: p.current.value, line: p.current.line)
+    of asmIdentifier:
+      result = Operand(kind: opIdentifier, value: p.current.value, line: p.current.line)
     else:
       raise newParseError("Unexpected token type", p.current.line)
+    
+  discard p.next()
 
 proc operandType(p: var Parser) : InstructionType =
   if p.current.kind != asmType:
@@ -335,7 +247,7 @@ proc instructionStatement(p: var Parser) : Statement =
         of tyVoid:
           raise newParseError("Push instruction expects a type", p.current.line)
         else:
-          result.operands.add(p.operand(instructionType))
+          result.operands.add(p.operand())
     of insAdd, insSub, insMul, insDiv, insMod:
       let instructionType = p.operandType()
       result.typeOf = instructionType
@@ -344,15 +256,12 @@ proc instructionStatement(p: var Parser) : Statement =
           raise newParseError("Instruction expects a type", p.current.line)
         else:
           discard
-    of insCall, insJump, insJumpEq, insJumpNEq, insNewObj:
-      let instructionType = p.operandType()
-      result.typeOf = instructionType
-      case instructionType:
-        of tyAddr:
-          result.operands.add(p.operand(instructionType))
-        else:
-          raise newParseError("Not a supported type", p.current.line)
-  # TODO: Support constant reference
+    of insCall, insJump, insJumpEq, insJumpNEq:
+      result.typeOf = tyAddr
+      result.operands.add(p.operand())
+    of insNewObj:
+      result.typeOf = tyConstant
+      result.operands.add(p.operand())
 
 proc labelStatement(p: var Parser) : Statement =
   if p.current.kind != asmIdentifier:
@@ -424,7 +333,7 @@ proc function(p: var Parser) : Function =
       p.addError(e.message, e.line)
       p.recoverTo(asmFunc, asmEndOfFile)
 
-proc constant(p: var Parser) : tuple[name: string, value: Operand] =
+proc constant(p: var Parser) : Constant =
   if p.current.kind != asmConst:
     raise newParseError("Expected const keyword", p.current.line)
   discard p.next()
@@ -435,9 +344,13 @@ proc constant(p: var Parser) : tuple[name: string, value: Operand] =
     raise newParseError("Expected identifier", p.current.line)
   let name = p.next()
 
-  let value = p.operand(typeOf)
+  if p.current.kind != asmEqual:
+    raise newParseError("Expected =", p.current.line)
+  discard p.next()
 
-  result = (name.value, value)
+  let value = p.operand()
+
+  result = Constant(name: name.value, typeOf: typeOf, value: value)
 
 proc program(p: var Parser) : Program =
   while p.current.kind != asmEndOfFile:
@@ -446,8 +359,7 @@ proc program(p: var Parser) : Program =
         of asmFunc:
           result.functions.add(p.function())
         of asmConst:
-          let constantVal = p.constant()
-          result.constants.add(constantVal.name, constantVal.value)
+          result.constants.add(p.constant())
         else:
           raise newParseError("Expected function or constant", p.current.line)
     except ParseError as e:
