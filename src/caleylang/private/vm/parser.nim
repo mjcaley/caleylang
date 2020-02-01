@@ -1,33 +1,7 @@
-import strutils
+import strutils, parseutils
 import lexer
 
-## INTEGER = ["-"] "0".."9"+
-## NAME = ["_"|"a"-"z"|"A"-"Z"] ("a"-"z"|"A"-"Z")*
-## FLOAT = ["-"] "0".."9"+ "." "0".."9"+
-## STRING = '"' .* '"'
-##
-## grammar = ( function | constant )*
-##
-## constant = ".const" type "=" value
-## value = INTEGER | NAME | FLOAT | STRING
-##
-## function_definition = ".func" NAME ":" "args" "=" INTEGER "locals" "=" INTEGER
-## function = function_definition ( statement )*
-##
-## statement = instruction_statement | label_statement
-##
-## label_statement = NAME ":"
-##
-## instruction_statement = instruction (type operand*)?
-##
-## instruction = "halt" | "nop" | "push" | "pop" | "add" | "mul" | "div" |
-##               "mod" | "jmp" | "jmpeq" | "jmpneq" | "newobj" | "call" |
-##               "ret"
-## type = ".byte" | ".addr" | ".i8" | ".u8" | ".i16" | ".u16" | ".i32" | ".u32" |
-##        ".i64" | ".u64" | ".f32" | ".f64" | ".str"
-##
-## operand = VALUE
-
+#region Parser
 
 type
   Parser = object
@@ -44,8 +18,8 @@ type
     message: string
 
   Program* = object
+    definitions*: seq[Definition]
     functions*: seq[Function]
-    constants*: seq[Constant]
 
   Function* = object
     name*: string
@@ -54,27 +28,8 @@ type
     statements*: seq[Statement]
     line*: int
 
-  Instruction* = enum
-    insHalt,
-    insNop,
-    insPush,
-    insPop,
-    insJump,
-    insJumpEq,
-    insJumpNEq,
-    insNewObj,
-    insCall,
-    insRet,
-    insAdd,
-    insSub,
-    insMul,
-    insDiv,
-    insMod
-
   InstructionType* = enum
     tyVoid,
-    tyConstant,
-    tyByte,
     tyAddr,
     tyI8,
     tyU8,
@@ -85,45 +40,114 @@ type
     tyI64,
     tyU64,
     tyF32,
-    tyF64
+    tyF64,
+    tyString
 
-  Constant* = object
+  Definition* = object
     name: string
     typeOf: InstructionType
-    value: Operand
+    operand: Operand
+    line: int
 
   StatementKind* = enum
     stmtLabel,
-    stmtInstruction
+    stmtNullaryInstruction,
+    stmtUnaryInstruction,
+    stmtBinaryInstruction
 
   Statement* = object
     case kind*: StatementKind:
-    of stmtInstruction:
-      instruction*: Instruction
-      typeOf*: InstructionType
-      operands*: seq[Operand]
     of stmtLabel:
-      name*: string
+      label*: Label
+    of stmtNullaryInstruction:
+      nullaryInstruction*: NullaryInstruction
+    of stmtUnaryInstruction:
+      unaryInstruction*: UnaryInstruction
+    of stmtBinaryInstruction:
+      binaryInstruction*: BinaryInstruction
+
+  Label* = ref object
+    label*: string
+    statement*: Statement
     line*: int
 
-  # IntegerFormat* = enum
-  #   intHex,
-  #   intBin,
-  #   intDec
+  NullaryInstruction* = ref object
+    instruction*: AsmTokenKind
+    typeOf*: InstructionType
+    line*: int
+
+  UnaryInstruction* = ref object
+    instruction*: AsmTokenKind
+    typeOf*: InstructionType
+    operand*: Operand
+    line*: int
+
+  BinaryInstruction* = ref object
+    instruction*: AsmTokenKind
+    typeOf*: InstructionType
+    firstOperand*: Operand
+    secondOperand*: Operand
+    line*: int
 
   OperandKind* = enum
-    opInteger,
+    opVoid,
+    opSignedInteger,
+    opUnsignedInteger,
     opFloat,
     opString,
     opIdentifier,
 
   Operand* = object
-    kind*: OperandKind
-    value*: string
+    case kind*: OperandKind:
+    of opVoid:
+      discard
+    of opSignedInteger:
+      sinteger*: BiggestInt
+    of opUnsignedInteger:
+      uinteger*: BiggestUInt
+    of opFloat:
+      floatingPoint*: BiggestFloat
+    of opString, opIdentifier:
+      value*: string
     line*: int
 
 
-# Utility
+const SignedIntegerTokenTypes = {asmI8Type, asmI16Type, asmI32Type, asmI64Type}
+const UnsignedIntegerTokenTypes = {asmU8Type, asmU16Type, asmU32Type, asmU64Type}
+const FloatingPointTokenTypes = {asmF32Type, asmF64Type}
+
+const SignedIntegerTypes = {tyI8, tyI16, tyI32, tyI64}
+const UnsignedIntegerTypes = {tyU8, tyU16, tyU32, tyU64}
+const FloatingPointTypes = {tyF32, tyF64}
+
+#region Utility
+
+proc newNullaryInstruction(instruction: AsmTokenKind, typeOf: InstructionType, line: int) : NullaryInstruction =
+  result = new NullaryInstruction
+  result.instruction = instruction
+  result.typeOf = typeOf
+  result.line = line
+
+proc newUnaryInstruction(instruction: AsmTokenKind, t: InstructionType, o: Operand, line: int) : UnaryInstruction =
+  result = new UnaryInstruction
+  result.instruction = instruction
+  result.typeOf = t
+  result.operand = o
+  result.line = line
+
+proc newBinaryInstruction(instruction: AsmTokenKind, t: InstructionType, first: Operand, second: Operand, line: int) : BinaryInstruction =
+  result = new BinaryInstruction
+  result.instruction = instruction
+  result.typeOf = t
+  result.firstOperand = first
+  result.secondOperand = second
+  result.line = line
+
+proc newLabel(label: string, s: Statement, line: int) : Label =
+  result = new Label
+  result.label = label
+  result.statement = s
+  result.line = line
 
 proc initParser(tokens: seq[AsmToken]) : Parser =
   result.tokens = iterator() : AsmToken =
@@ -148,120 +172,232 @@ proc recoverTo(p: var Parser, kinds: varargs[AsmTokenKind]) =
   while not (p.current.kind in kinds):
     discard p.next()
 
-# Parser
+#endregion
 
-proc operand(p: var Parser) : Operand =
-  case p.current.kind:
-    of asmInteger:
-      result = Operand(kind: opInteger, value: p.current.value, line: p.current.line)
-    of asmFloat:
-      result = Operand(kind: opFloat, value: p.current.value, line: p.current.line)
-    of asmString:
-      result = Operand(kind: opString, value: p.current.value, line: p.current.line)
-    of asmIdentifier:
-      result = Operand(kind: opIdentifier, value: p.current.value, line: p.current.line)
+proc signedIntegerOperand(p: var Parser) : Operand =
+  if p.current.kind != asmInteger:
+    raise newParseError("Invalid token, expected integer", p.current.line)
+
+  let token = p.next
+  var success: int
+  var value: BiggestInt
+
+  try:
+    if token.value.startsWith("0x"):
+      success = parseHex(token.value, value)
+    elif token.value.startsWith("0b"):
+      success = parseBin(token.value, value)
     else:
-      raise newParseError("Unexpected token type", p.current.line)
-    
-  discard p.next()
+      success = parseBiggestInt(token.value, value)
+  except ValueError:
+    discard
+  
+  if success == 0:
+    raise newParseError("Can't parse integer value", token.line)
+
+  result = Operand(kind: opSignedInteger, sinteger: value, line: token.line)
+
+proc unsignedIntegerOperand(p: var Parser) : Operand =
+  if p.current.kind != asmInteger:
+    raise newParseError("Invalid token, expected integer", p.current.line)
+
+  let token = p.next
+  var success: int
+  var value: BiggestUInt
+  
+  try:
+    if token.value.startsWith("0x"):
+      success = parseHex(token.value, value)
+    elif token.value.startsWith("0b"):
+      success = parseBin(token.value, value)
+    else:
+      success = parseBiggestUInt(token.value, value)
+  except ValueError:
+    discard
+  
+  if success == 0:
+    raise newParseError("Can't parse integer value", token.line)
+
+  result = Operand(kind: opUnsignedInteger, uinteger: value, line: token.line)
+
+proc floatOperand(p: var Parser) : Operand =
+  if p.current.kind != asmFloat:
+    raise newParseError("Invalid token, expected float", p.current.line)
+
+  let token = p.next
+  var value: BiggestFloat
+
+  let success = parseBiggestFloat(token.value, value)
+  
+  if success == 0:
+    raise newParseError("Can't parse floating point value", token.line)
+
+  result = Operand(kind: opFloat, floatingPoint: value, line: token.line)
+
+proc stringOperand(p: var Parser) : Operand =
+  if p.current.kind != asmString:
+    raise newParseError("Invalid token, expected string", p.current.line)
+
+  let token = p.next
+  result = Operand(kind: opString, value: token.value, line: token.line)
+
+proc identifierOperand(p: var Parser) : Operand =
+  if p.current.kind != asmIdentifier:
+    raise newParseError("Invalid token, expected identifier", p.current.line)
+
+  let token = p.next
+  result = Operand(kind: opIdentifier, value: token.value, line: token.line)
 
 proc operandType(p: var Parser) : InstructionType =
-  if p.current.kind != asmType:
-    raise newParseError("Expected type declaration", p.current.line)
-  
-  let insType = p.next()
-  case insType.value:
-    of ".byte":
-      result = tyByte
-    of ".addr":
-      result = tyAddr
-    of ".i8":
+  case p.current.kind:
+    of asmI8Type:
       result = tyI8
-    of ".u8":
+    of asmU8Type:
       result = tyU8
-    of ".i16":
+    of asmI16Type:
       result = tyI16
-    of ".u16":
+    of asmU16Type:
       result = tyU16
-    of ".i32":
+    of asmI32Type:
       result = tyI32
-    of ".u32":
+    of asmU32Type:
       result = tyU32
-    of ".i64":
+    of asmI64Type:
       result = tyI64
-    of ".u64":
+    of asmU64Type:
       result = tyU64
-    of ".f32":
+    of asmF32Type:
       result = tyF32
-    of ".f64":
+    of asmF64Type:
       result = tyF64
+    of asmString:
+      result = tyString
     else:
       raise newParseError("Not a valid type name", p.current.line)
+  discard p.next()
+
+proc arithmeticType(p: var Parser) : InstructionType =
+  let line = p.current.line
+  let opType = p.operandType()
+  case opType:
+    of SignedIntegerTypes, UnsignedIntegerTypes, FloatingPointTypes:
+      result = opType
+    else:
+      raise newParseError("Expected integer or floating point type", line)
+
+proc stackOperand(p: var Parser) : tuple[typeOf: InstructionType, operand: Operand] =
+  case p.current.kind:
+    of SignedIntegerTokenTypes:
+      let opType = p.operandType()
+      let op = p.signedIntegerOperand()
+      result = (typeOf: opType, operand: op)
+
+    of UnsignedIntegerTokenTypes:
+      let opType = p.operandType()
+      let op = p.unsignedIntegerOperand()
+      result = (typeOf: opType, operand: op)
+
+    of FloatingPointTokenTypes:
+      let opType = p.operandType()
+      let op = p.floatOperand()
+      result = (typeOf: opType, operand: op)
+
+    of asmString:
+      let opType = p.operandType()
+      let op = p.stringOperand()
+      result = (typeOf: opType, operand: op)
+
+    of asmIdentifier:
+      let op = p.identifierOperand()
+      result = (typeOf: tyVoid, operand: op)
+
+    else:
+      raise newParseError("Expected a type or literal", p.current.line)
+
+proc definitionOperand(p: var Parser) : tuple[typeOf: InstructionType, operand: Operand] =
+  let operandType = p.operandType()
+  
+  case operandType:
+    of SignedIntegerTypes:
+      result = (operandType, p.signedIntegerOperand())
+    of UnsignedIntegerTypes:
+      result = (operandType, p.unsignedIntegerOperand())
+    of FloatingPointTypes:
+      result = (operandType, p.floatOperand())
+    of tyString:
+      result = (operandType, p.stringOperand())
+    else:
+      raise newParseError("Expected a literal", p.current.line)
 
 proc instructionStatement(p: var Parser) : Statement =
-  if p.current.kind != asmInstruction:
-    raise newParseError("Expected instruction", p.current.line)
+  case p.current.kind:
+    of asmHalt, asmNop, asmPop, asmReturn, asmTestEqual, asmTestNotEqual, asmTestGreaterThan, asmTestLessThan:
+      let token = p.next()
+      result = Statement(
+        kind: stmtNullaryInstruction,
+        nullaryInstruction: newNullaryInstruction(
+          token.kind,
+          tyVoid,
+          token.line
+        )
+      )
 
-  let instructionToken = p.next()
-  result = Statement(kind: stmtInstruction, line: instructionToken.line)
-  case instructionToken.value:
-    of "halt":
-      result.instruction = insHalt
-    of "nop":
-      result.instruction = insNop
-    of "push":
-      result.instruction = insPush
-    of "pop":
-      result.instruction = insPop
-    of "jmp":
-      result.instruction = insJump
-    of "jmpeq":
-      result.instruction = insJumpEq
-    of "jmpneq":
-      result.instruction = insJumpNEq
-    of "newobj":
-      result.instruction = insNewObj
-    of "call":
-      result.instruction = insCall
-    of "ret":
-      result.instruction = insRet
-    of "add":
-      result.instruction = insAdd
-    of "sub":
-      result.instruction = insSub
-    of "mul":
-      result.instruction = insMul
-    of "div":
-      result.instruction = insDiv
-    of "mod":
-      result.instruction = insMod
+    of asmAdd, asmSub, asmMul, asmDiv, asmMod:
+      let token = p.next()
+      let typeOf = p.arithmeticType()
+      result = Statement(
+        kind: stmtNullaryInstruction,
+        nullaryInstruction: newNullaryInstruction(
+          token.kind,
+          typeOf,
+          token.line
+        )
+      )
 
-  case result.instruction:
-    of insHalt, insNop, insPop, insRet:
-      # no type, no operands
-      result.typeOf = tyVoid
-    of insPush:
-      let instructionType = p.operandType()
-      result.typeOf = instructionType
-      case instructionType:
-        of tyVoid:
-          raise newParseError("Push instruction expects a type", p.current.line)
-        else:
-          result.operands.add(p.operand())
-    of insAdd, insSub, insMul, insDiv, insMod:
-      let instructionType = p.operandType()
-      result.typeOf = instructionType
-      case instructionType:
-        of tyVoid:
-          raise newParseError("Instruction expects a type", p.current.line)
-        else:
-          discard
-    of insCall, insJump, insJumpEq, insJumpNEq:
-      result.typeOf = tyAddr
-      result.operands.add(p.operand())
-    of insNewObj:
-      result.typeOf = tyConstant
-      result.operands.add(p.operand())
+    of asmLoadConst, asmStoreLocal, asmLoadLocal:
+      let token = p.next()
+      let operand = p.stackOperand()
+      result = Statement(
+        kind: stmtUnaryInstruction,
+        unaryInstruction: newUnaryInstruction(
+          token.kind,
+          operand.typeOf,
+          operand.operand,
+          token.line
+        )
+      )
+
+    of asmJump, asmJumpTrue, asmJumpFalse, asmCallFunc, asmCallInterface, asmNewStruct:
+      let token = p.next()
+      let operand = p.identifierOperand()
+      result = Statement(
+        kind: stmtUnaryInstruction,
+        unaryInstruction: newUnaryInstruction(
+          token.kind,
+          tyAddr,
+          operand,
+          token.line
+        )
+      )
+
+    of asmLoadField, asmStoreField:
+      let token = p.next()
+      let structDef = p.unsignedIntegerOperand()
+      let fieldIndex = p.unsignedIntegerOperand()
+      result = Statement(
+        kind: stmtBinaryInstruction,
+        binaryInstruction: newBinaryInstruction(
+          token.kind,
+          tyAddr,
+          structDef,
+          fieldIndex,
+          token.line
+        )
+      )
+    else:
+      raise newParseError("Expected instruction", p.current.line)
+
+proc statement(p: var Parser) : Statement
 
 proc labelStatement(p: var Parser) : Statement =
   if p.current.kind != asmIdentifier:
@@ -273,16 +409,21 @@ proc labelStatement(p: var Parser) : Statement =
     raise newParseError("Expected :", p.current.line)
   discard p.next()
 
-  result = Statement(kind: stmtLabel, name: p.current.value, line: label.line)
+  result = Statement(
+    kind: stmtLabel,
+    label: newLabel(
+      p.current.value,
+      p.statement(),
+      label.line
+    )
+  )
 
 proc statement(p: var Parser) : Statement =
   case p.current.kind:
-    of asmInstruction:
-      result = p.instructionStatement()
     of asmIdentifier:
       result = p.labelStatement()
     else:
-      raise newParseError("Statement should be an instruction or label", p.current.line)
+      result = p.instructionStatement()
 
 proc function(p: var Parser) : Function =
   if p.current.kind != asmFunc:
@@ -333,24 +474,23 @@ proc function(p: var Parser) : Function =
       p.addError(e.message, e.line)
       p.recoverTo(asmFunc, asmEndOfFile)
 
-proc constant(p: var Parser) : Constant =
-  if p.current.kind != asmConst:
-    raise newParseError("Expected const keyword", p.current.line)
+proc definition(p: var Parser) : Definition =
+  if p.current.kind != asmDefine:
+    raise newParseError("Expected define keyword", p.current.line)
   discard p.next()
-
-  let typeOf = p.operandType()
 
   if p.current.kind != asmIdentifier:
-    raise newParseError("Expected identifier", p.current.line)
-  let name = p.next()
+    raise newParseError("Definition expects to have an identifier", p.current.line)
+  let identifier = p.next()
 
-  if p.current.kind != asmEqual:
-    raise newParseError("Expected =", p.current.line)
-  discard p.next()
+  let op = p.definitionOperand()
 
-  let value = p.operand()
-
-  result = Constant(name: name.value, typeOf: typeOf, value: value)
+  result = Definition(
+    name: identifier.value,
+    typeOf: op.typeOf,
+    operand: op.operand,
+    line: identifier.line
+  )
 
 proc program(p: var Parser) : Program =
   while p.current.kind != asmEndOfFile:
@@ -358,13 +498,15 @@ proc program(p: var Parser) : Program =
       case p.current.kind:
         of asmFunc:
           result.functions.add(p.function())
-        of asmConst:
-          result.constants.add(p.constant())
+        of asmDefine:
+          result.definitions.add(p.definition())
         else:
           raise newParseError("Expected function or constant", p.current.line)
     except ParseError as e:
       p.addError(e.message, e.line)
-      p.recoverTo(asmFunc, asmConst, asmEndOfFile)
+      p.recoverTo(asmFunc, asmDefine, asmEndOfFile)
+
+#endregion
 
 proc parse*(tokens: seq[AsmToken]) : ParseResults =
   var parser = initParser(tokens)
