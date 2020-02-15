@@ -1,109 +1,9 @@
 import parseopt, sequtils, strutils, tables
-import parser, ast
-
-
-const StackSize = 100
+import private/vm/bytecode, parser, ast
 
 type
   Args = object
     files: seq[string]
-
-  Instruction {.size: sizeof(byte).} = enum
-    halt,
-
-    pushb
-    addb,
-    subb,
-    mulb,
-    divb,
-    modb,
-
-    pushaddr
-    addaddr,
-    subaddr,
-    muladdr,
-    divaddr,
-    modaddr,
-    
-    pushi8
-    addi8,
-    subi8,
-    muli8,
-    divi8,
-    modi8,
-    
-    pushu8
-    addu8,
-    subu8,
-    mulu8,
-    divu8,
-    modu8,
-    
-    pushi16
-    addi16,
-    subi16,
-    muli16,
-    divi16,
-    modi16,
-    
-    pushu16
-    addu16,
-    subu16,
-    mulu16,
-    divu16,
-    modu16,
-    
-    pushi32
-    addi32,
-    subi32,
-    muli32,
-    divi32,
-    modi32,
-    
-    pushu32
-    addu32,
-    subu32,
-    mulu32,
-    divu32,
-    modu32,
-    
-    pushi64
-    addi64,
-    subi64,
-    muli64,
-    divi64,
-    modi64,
-
-    pushu64
-    addu64,
-    subu64,
-    mulu64,
-    divu64,
-    modu64,
-
-    pushf32
-    addf32,
-    subf32,
-    mulf32,
-    divf32,
-    modf32,
-
-    pushf64
-    addf64,
-    subf64,
-    mulf64,
-    divf64,
-    modf64,
-
-    jmp,      # (pc)
-    jmpeq,    # (pc), jumps to IP if the operands on top of the stack are equal
-    jmpneq,   # (pc), jumps to IP if the operands on top of the stack are not equal
-
-    newobj,   # (constant index), constructs object from constant into memory, pushes addr
-
-    pop,
-    call,     # (function index), calls function described in function table
-    ret       # (), returns to 
 
   Frame* = object
     retIP*: Natural
@@ -113,33 +13,62 @@ type
     funcNative,
     funcNormal
 
-  Function* = object
+  FunctionDefinition* = object
     case kind*: FunctionKind
     of funcNative:
       funcPointer*: proc(env: var Environment)
     of funcNormal:
-      address*: Natural
+      address*: int
     name*: string
-    numLocals*: Natural
-    numParams*: Natural
+    numLocals*: int
+    numParams*: int
+
+  InterfaceDefinition* = object
+    name*: string
+    functionAddrs*: seq[int]
+  
+  StructDefinition* = object
+    name*: string
+    size*: int
+    fieldOffsets*: seq[int]
 
   ConstantKind* = enum
-    conNativeFunction,
+    conUInt8,
+    conUInt16,
+    conUInt32,
+    conUInt64,
+    conInt8,
+    conInt16,
+    conInt32,
+    conInt64,
+    conFloat32,
+    conFloat64,
+    conString,
     conFunction,
-    conString
+    conStruct,
+    conInterface
 
   Constant* = object
     case kind*: ConstantKind
-    of conFunction:
-      fun*: Function
+    of conUInt8, conUInt16, conUInt32, conUInt64:
+      uinteger*: BiggestUInt
+    of conInt8, conInt16, conInt32, conInt64:
+      integer*: BiggestInt
+    of conFloat32, conFloat64:
+      floatingPoint*: float64
     of conString:
       str*: string
-    else:
-      discard
+    of conFunction:
+      functionDef*: FunctionDefinition
+    of conStruct:
+      structDef*: StructDefinition
+    of conInterface:
+      interfaceDef*: InterfaceDefinition
 
   ValueKind* = enum
-    valByte,
+    valNone,
     valAddr,
+    valPtr,
     valInt8,
     valUInt8,
     valInt16,
@@ -154,11 +83,13 @@ type
 
   Value* = object
     case kind*: ValueKind
-    of valByte:
-      b*: byte
-
+    of valNone:
+      discard
     of valAddr:
-      a*: pointer
+      a*: int
+
+    of valPtr:
+      p*: pointer
 
     of valInt8:
       i8*: int8
@@ -192,6 +123,8 @@ type
     callStack*: seq[Frame]
     constants*: seq[Constant]
 
+  VMRuntimeError* = object of Exception
+
 
 proc initEnvironment() : Environment =
   result = Environment(
@@ -221,7 +154,10 @@ proc `$`(e: Environment) : string =
     result &= " " & code.toHex
     dec lineLimit
 
-proc pushFrame(env: var Environment, f: Function) =
+proc currentFrame(env: var Environment) : var Frame =
+  env.callStack[high env.callStack]
+
+proc pushFrame(env: var Environment, f: FunctionDefinition) =
   var frame = Frame(retIP: env.ip, locals: newSeq[Value](f.numLocals))
   for param in 0..<f.numParams:
     frame.locals[param] = env.operandStack.pop
@@ -233,7 +169,7 @@ proc popFrame(env: var Environment) =
   env.ip = frame.retIP
 
 proc environmentStatus(env: Environment) : string =
-  result = "IP: " & $env.ip & "\nOperand stack: " & $env.operandStack & "\nCallStack: " & $env.callStack
+  result = "----------------\n" & "IP: " & $env.ip & "\nOperand stack: " & $env.operandStack & "\nCallStack: " & $env.callStack & "\n----------------"
 
 #region Byte conversion
 proc toBytes[T](v: T) : array[sizeof(T), byte] =
@@ -260,22 +196,150 @@ proc fromBytes[T](v: var openArray[byte], index: Natural) : T =
 
 #endregion
 
+
+proc printNative(env: var Environment) =
+  let param = env.currentFrame().locals[0]
+  case param.kind:
+    of valUInt8:
+      echo param.u8
+    else:
+      echo "printNative, type not implemented"
+  discard env.callStack.pop()
+
 proc basicProgram(env: var Environment) =
-  env.program = @[byte(call)] & @(toBytes[Natural](0)) & @[byte(halt), byte(pushi32)] & @(toBytes[int32](40)) & @[byte(pushi32)] & @(toBytes[int32](2)) & @[byte(addi32), byte(ret)]
+  env.program = @[
+    byte(callfunc_u8), 2,
+    byte(callfunc_u8), 4,
+    byte(halt),
+    # main() : u8
+    byte(ldconst_u8), 0,
+    byte(ldconst_u8), 1,
+    byte(callfunc_u8), 3, # sum(40, 2)
+    byte(ret),
+    # sum(a, b) : u8
+    byte(ldlocal_u8), 0,  # first param
+    byte(ldlocal_u8), 1,  # second param
+    byte(addu),
+    byte(ret)
+    ]
+  env.constants.add(
+    Constant(
+      kind: conUint8,
+      uinteger: 40
+    )
+  )
+  env.constants.add(
+    Constant(
+      kind: conUint8,
+      uinteger: 2
+    )
+  )
   env.constants.add(
     Constant(
       kind: conFunction,
-      fun: Function(
+      functionDef: FunctionDefinition(
         kind: funcNormal,
-        address: 10,
+        address: 5,
         name: "main()",
         numParams: 0,
-        numLocals: 0
+        numLocals: 1
+      )
+    )
+  )
+  env.constants.add(
+    Constant(
+      kind: conFunction,
+      functionDef: FunctionDefinition(
+        kind: funcNormal,
+        address: 12,
+        name: "sum()",
+        numParams: 2,
+        numLocals: 2
+      )
+    )
+  )
+  env.constants.add(
+    Constant(
+      kind: conFunction,
+      functionDef: FunctionDefinition(
+        kind: funcNative,
+        name: "print()",
+        funcPointer: printNative,
+        numParams: 1,
+        numLocals: 1
       )
     )
   )
 
+proc fibProgram(env: var Environment) =
+  env.program = @[
+    byte(ldconst_u8), 0,
+    byte(callfunc_u8), 3,
+    byte(callfunc_u8), 4,
+    byte(halt),
+    # fib(n)
+    byte(ldlocal_u8), 0,
+    byte(ldconst_u8), 2,
+    byte(testltu),      # if n < 2
+    byte(jmpf_u8), 17, # to recursive calls
+    byte(ldlocal_u8), 0,
+    byte(ret),
 
+    byte(ldlocal_u8), 0,
+    byte(ldconst_u8), 1, # 1
+    byte(subu),
+    byte(callfunc_u8), 3, # fib(n - 1)
+    byte(ldlocal_u8), 0,
+    byte(ldconst_u8), 2, # 2
+    byte(subu),
+    byte(callfunc_u8), 3, # fib(n - 2)
+    byte(addu),
+    byte(ret),
+    ]
+  env.constants.add(
+    Constant(
+      kind: conUint8,
+      uinteger: 10
+    )
+  )
+  env.constants.add(
+    Constant(
+      kind: conUint8,
+      uinteger: 1
+    )
+  )
+  env.constants.add(
+    Constant(
+      kind: conUint8,
+      uinteger: 2
+    )
+  )
+  env.constants.add(
+    Constant(
+      kind: conFunction,
+      functionDef: FunctionDefinition(
+        kind: funcNormal,
+        address: 7,
+        name: "fib()",
+        numParams: 1,
+        numLocals: 1
+      )
+    )
+  )
+  env.constants.add(
+    Constant(
+      kind: conFunction,
+      functionDef: FunctionDefinition(
+        kind: funcNative,
+        name: "print()",
+        funcPointer: printNative,
+        numParams: 1,
+        numLocals: 1
+      )
+    )
+  )
+
+#region VM utility
 
 proc print[T](i: Instruction, message: T) =
   echo "[", $i, "]", " ", $message
@@ -290,9 +354,6 @@ proc consumeInstruction(env: var Environment) : Instruction =
 proc arg[T](env: var Environment) : T =
   result = fromBytes[T](env.program, env.ip)
   env.ip += sizeof(T)
-
-proc argbyte(env: var Environment) : byte =
-  result = arg[byte](env)
 
 proc argint8(env: var Environment) : int8 =
   result = arg[int8](env)
@@ -318,34 +379,168 @@ proc push(env: var Environment, value: Value) =
 proc popValue(env: var Environment) : Value =
   result = env.operandStack.pop
 
+#endregion
+
+proc coerceUnsigned(val: Value) : BiggestUInt =
+  case val.kind:
+  of valUInt8:
+    result = val.u8
+  of valUInt16:
+    result = val.u16
+  of valUInt32:
+    result = val.u32
+  of valUInt64:
+    result = val.u64
+  else:
+    discard
+
+proc coerceSigned(val: Value) : BiggestInt =
+  case val.kind:
+  of valAddr:
+    result = val.a
+  of valInt8:
+    result = val.i8
+  of valInt16:
+    result = val.i16
+  of valInt32:
+    result = val.i32
+  of valInt64:
+    result = val.i64
+  else:
+    discard
+
+proc coerceFloat(val: Value) : BiggestFloat =
+  case val.kind:
+  of valFloat32:
+    result = val.f32
+  of valFloat64:
+    result = val.f64
+  else:
+    discard
+
+
 proc loop(env: var Environment) : int =
   var running = true
+
   while running:
-    echo env.environmentStatus
-    case Instruction env.consumeInstruction:
+    # echo env.environmentStatus
+    let currentInstruction: Instruction = env.consumeInstruction
+    # echo "Current instruction: ", currentInstruction
+
+    case currentInstruction:  # TODO: should check if out of range
       of halt:
         running = false
-        print(halt)
-      of call:
-        let funcIndex = env.argnatural
-        let function = env.constants[funcIndex].fun
-        env.pushFrame(function)
-        print(call, $funcIndex)
+
+      of Instruction.pop:
+        discard env.operandStack.pop()
+
+      of ldconst_u8:
+        let operand = env.arguint8()
+        let constant = env.constants[operand]
+        case constant.kind:
+        of conUInt8:
+          env.operandStack.add(Value(kind: valUInt8, u8: uint8 constant.uinteger))
+        else:
+          raise newException(VMRuntimeError, "ldconst.u8 expected a uint8 constant, but got" & $constant)
+
+      of ldlocal_u8:
+        let index = env.arguint8()
+        let local = env.currentFrame.locals[index]
+        env.operandStack.add(local)
+
+      of stlocal_u8:
+        let index = env.arguint8()
+        env.currentFrame.locals[index] = env.operandStack.pop()
+
+      of callfunc_u8:
+        let index = env.arguint8()
+        let function = env.constants[index].functionDef
+
+        env.callStack.add(Frame(retIP: env.ip, locals: newSeq[Value](function.numLocals)))
+        for i in 0..<function.numParams:
+          env.currentFrame.locals[i] = env.operandStack.pop()
+
+        case function.kind:
+        of funcNormal:
+          env.ip = function.address
+        of funcNative:
+          function.funcPointer(env)
+
       of ret:
-        env.popFrame()
-        print(ret)
-      of pushb:
-        let arg = env.argbyte
-        env.push(Value(kind: valByte, b: arg))
-        print(pushb, $arg)
-      of pop:
-        discard env.popValue
-        print(pop)
-      of addb:
-        let right = env.popValue
-        let left = env.popValue
-        env.push(Value(kind: valByte, b: left.b + right.b))
-        print(addb)
+        let frame = env.callStack.pop()
+        env.ip = frame.retIP
+
+      of addu:
+        let second = env.operandStack.pop()
+        let first = env.operandStack.pop()
+
+        # assume uint8
+        let sum = first.u8 + second.u8
+        env.operandStack.add(Value(kind: valUInt8, u8: sum))
+
+      of subu:
+        let second = env.operandStack.pop()
+        let first = env.operandStack.pop()
+
+        # assume uint8
+        let sum = first.u8 - second.u8
+        env.operandStack.add(Value(kind: valUInt8, u8: sum))
+
+      of newstruct_u8:
+        let index = env.arguint8()
+        let struct = env.constants[index].structDef
+        let structAddr = alloc0(struct.size)
+        env.operandStack.add(Value(kind: valPtr, p: structAddr))
+
+      of testequ:
+        let first = env.operandStack.pop()
+        let second = env.operandStack.pop()
+
+        let test = coerceUnsigned(first) == coerceUnsigned(second)
+
+        if test:
+          env.operandStack.add(Value(kind: valUInt8, u8: 1))
+        else:
+          env.operandStack.add(Value(kind: valUInt8, u8: 0))
+
+      of testltu:
+        let second = env.operandStack.pop()
+        let first = env.operandStack.pop()
+
+        let test = coerceUnsigned(first) < coerceUnsigned(second)
+
+        if test:
+          env.operandStack.add(Value(kind: valUInt8, u8: 1))
+        else:
+          env.operandStack.add(Value(kind: valUInt8, u8: 0))
+
+      of testgtu:
+        let second = env.operandStack.pop()
+        let first = env.operandStack.pop()
+
+        let test = coerceUnsigned(first) > coerceUnsigned(second)
+
+        if test:
+          env.operandStack.add(Value(kind: valUInt8, u8: 1))
+        else:
+          env.operandStack.add(Value(kind: valUInt8, u8: 0))
+
+      of jmpt_u8:
+        let address = env.arguint8()
+        let testResult = env.operandStack.pop()
+        if testResult.kind != valUInt8:
+          raise newException(VMRuntimeError, "jmpt_u8 must be a uint8")
+        if testResult.u8 > uint8 0:
+          env.ip = address
+
+      of jmpf_u8:
+        let address = env.arguint8()
+        let testResult = env.operandStack.pop()
+        if testResult.kind != valUInt8:
+          raise newException(VMRuntimeError, "jmpt_u8 must be a uint8")
+        if testResult.u8 == uint8 0:
+          env.ip = address
+
       else:
         running = false
 
@@ -373,13 +568,19 @@ proc main() =
   #     let ast = treeToAst(parseResult.tree)
   #     modules.add(filename, ast)
 
-  # Setup VM
-  var env = initEnvironment()
-  basicProgram(env)
-  echo env
-  let returnCode = loop(env)
-  echo "Stack: ", env.operandStack
-  echo "Exiting (", returnCode, ")"
+  
+  # var env = initEnvironment()
+  # basicProgram(env)
+  # echo env
+  # let returnCode = loop(env)
+  # echo "Stack: ", env.operandStack
+  # echo "Exiting (", returnCode, ")"
+
+  echo "Fibonacci"
+  var fibEnv = initEnvironment()
+  fibProgram(fibEnv)
+  let fibReturnCode = loop(fibEnv)
+  echo environmentStatus(fibEnv)
 
 when isMainModule:
   main()

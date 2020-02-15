@@ -1,97 +1,119 @@
 type
   Instruction* {.size: sizeof(byte).} = enum
     halt,
+    nop,
 
-    pushb
-    addb,
-    subb,
-    mulb,
-    divb,
-    modb,
+    add_i8,
+    add_i16,
+    add_i32,
+    add_i64,
+    sub_i8,
+    sub_i16,
+    sub_i32,
+    sub_i64,
+    mul_i8,
+    mul_i16,
+    mul_i32,
+    mul_i64,
+    div_i8,
+    div_i16,
+    div_i32,
+    div_i64,
+    mod_i8,
+    mod_i16,
+    mod_i32,
+    mod_i64,
 
-    pushaddr
-    addaddr,
-    subaddr,
-    muladdr,
-    divaddr,
-    modaddr,
-    
-    pushi8
-    addi8,
-    subi8,
-    muli8,
-    divi8,
-    modi8,
-    
-    pushu8
-    addu8,
-    subu8,
-    mulu8,
-    divu8,
-    modu8,
-    
-    pushi16
-    addi16,
-    subi16,
-    muli16,
-    divi16,
-    modi16,
-    
-    pushu16
-    addu16,
-    subu16,
-    mulu16,
-    divu16,
-    modu16,
-    
-    pushi32
-    addi32,
-    subi32,
-    muli32,
-    divi32,
-    modi32,
-    
-    pushu32
-    addu32,
-    subu32,
-    mulu32,
-    divu32,
-    modu32,
-    
-    pushi64
-    addi64,
-    subi64,
-    muli64,
-    divi64,
-    modi64,
+    add_u8,
+    add_u16,
+    add_u32,
+    add_u64,
+    sub_u8,
+    sub_u16,
+    sub_u32,
+    sub_u64,
+    mul_u8,
+    mul_u16,
+    mul_u32,
+    mul_u64,
+    div_u8,
+    div_u16,
+    div_u32,
+    div_u64,
+    mod_u8,
+    mod_u16,
+    mod_u32,
+    mod_u64,
 
-    pushu64
-    addu64,
-    subu64,
-    mulu64,
-    divu64,
-    modu64,
-
-    pushf32
-    addf32,
-    subf32,
-    mulf32,
-    divf32,
-    modf32,
-
-    pushf64
-    addf64,
-    subf64,
-    mulf64,
-    divf64,
-    modf64,
-
-    jmp,      # (pc)
-    jmpeq,    # (pc), jumps to IP if the operands on top of the stack are equal
-    jmpneq,   # (pc), jumps to IP if the operands on top of the stack are not equal
-
-    newobj,   # (constant index), constructs object from constant into memory, pushes addr
+    add_f32,
+    add_f64,
+    sub_f32,
+    sub_f64,
+    mul_f32,
+    mul_f64,
+    div_f32,
+    div_f64,
+    mod_f32,
+    mod_f64,
 
     pop,
-    call,     # (function index), calls function described in function table
-    ret       # (), set PC to the return address in the frame, pops the frame
+    ldconst,
+    stlocal,
+    ldlocal,
+
+    testeq_i8,
+    testeq_i16,
+    testeq_i32,
+    testeq_i64,
+    testne_i8,
+    testne_i16,
+    testne_i32,
+    testne_i64,
+    testgt_i8,
+    testgt_i16,
+    testgt_i32,
+    testgt_i64,
+    testlt_i8,
+    testlt_i16,
+    testlt_i32,
+    testlt_i64,
+
+    testeq_u8,
+    testeq_u16,
+    testeq_u32,
+    testeq_u64,
+    testne_u8,
+    testne_u16,
+    testne_u32,
+    testne_u64,
+    testgt_u8,
+    testgt_u16,
+    testgt_u32,
+    testgt_u64,
+    testlt_u8,
+    testlt_u16,
+    testlt_u32,
+    testlt_u64,
+
+    testeq_f32,
+    testeq_f64,
+    testne_f32,
+    testne_f64,
+    testgt_f32,
+    testgt_f64,
+    testlt_f32,
+    testlt_f64,
+
+    jmp,
+    jmpt,
+    jmpf,
+
+    callfunc,
+    callinterface,
+
+    newstruct,
+    newstructarray,
+
+    ldfield,
+
+    ret

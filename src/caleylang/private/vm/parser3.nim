@@ -1,13 +1,48 @@
-import strutils, parseutils
+import hashes, parseutils, sets, strutils, tables
 import lexer
 
 #region Parser
 
 type
+  Symbols = object
+    functionSet: HashSet[FunctionDefRef]
+    functions: Table[string, FunctionDef]
+    constantSet: HashSet[ConstantDef]
+    constants: Table[string, ConstantDef]
+    labelsSet: HashSet[LabelDef]
+    labels: Table[string, LabelDef]
+
   Parser = object
+    index: int
     current: AsmToken
     tokens: iterator(): AsmToken
     errors: seq[tuple[message: string, line: int]]
+    functionDefinitions: seq[FunctionDef]
+    constantDefinitions: seq[ConstantDef]
+    labelDefinitions: seq[LabelDef]
+
+  FunctionDef = object
+    name: string
+    args: int
+    locals: int
+    index: int
+    isDefined: bool
+
+  FunctionDefRef = ref FunctionDef
+
+  LabelDef = object
+    name: string
+    index: int
+    isDefined: bool
+
+  LabelDefRef = ref LabelDef
+
+  ConstantDef = object
+    name: string
+    value: Operand
+    isDefined: bool
+
+  ConstantDefRef = ref ConstantDef
 
   ParseResults* = object
     program: Program
@@ -18,17 +53,14 @@ type
     message: string
 
   Program* = object
-    definitions*: seq[Definition]
     functions*: seq[Function]
 
   Function* = object
-    name*: string
-    args*: int
-    locals*: int
+    definition: FunctionDef
     statements*: seq[Statement]
     line*: int
-
-  InstructionType* = enum
+  
+  OperandType* = enum
     tyVoid,
     tyAddr,
     tyI8,
@@ -43,22 +75,17 @@ type
     tyF64,
     tyString
 
-  Definition* = object
-    name: string
-    typeOf: InstructionType
-    operand: Operand
+  Constant* = object
+    constant: ConstantDef
     line: int
 
   StatementKind* = enum
-    stmtLabel,
     stmtNullaryInstruction,
     stmtUnaryInstruction,
     stmtBinaryInstruction
 
   Statement* = object
     case kind*: StatementKind:
-    of stmtLabel:
-      label*: Label
     of stmtNullaryInstruction:
       nullaryInstruction*: NullaryInstruction
     of stmtUnaryInstruction:
@@ -66,27 +93,20 @@ type
     of stmtBinaryInstruction:
       binaryInstruction*: BinaryInstruction
 
-  Label* = ref object
-    label*: string
-    statement*: Statement
-    line*: int
-
   NullaryInstruction* = ref object
     instruction*: AsmTokenKind
-    typeOf*: InstructionType
+    typeOf*: OperandType
     line*: int
 
   UnaryInstruction* = ref object
     instruction*: AsmTokenKind
-    typeOf*: InstructionType
-    operand*: Operand
+    operand*: ConstantDef
     line*: int
 
   BinaryInstruction* = ref object
     instruction*: AsmTokenKind
-    typeOf*: InstructionType
-    firstOperand*: Operand
-    secondOperand*: Operand
+    firstOperand*: ConstantDef
+    secondOperand*: ConstantDef
     line*: int
 
   OperandKind* = enum
@@ -120,41 +140,68 @@ const SignedIntegerTypes = {tyI8, tyI16, tyI32, tyI64}
 const UnsignedIntegerTypes = {tyU8, tyU16, tyU32, tyU64}
 const FloatingPointTypes = {tyF32, tyF64}
 
+const NullInstructionSize = sizeof(byte)
+const UnaryInstructionSize = sizeof(byte) + sizeof(BiggestUInt)
+const BinaryInstructionSize = sizeof(byte) + sizeof(BiggestUInt) + sizeof(BiggestUInt)
+
 #region Utility
 
-proc newNullaryInstruction(instruction: AsmTokenKind, typeOf: InstructionType, line: int) : NullaryInstruction =
+proc initConstantDef(name: string, operandValue: Operand, isDefined: bool) : ConstantDef =
+  result = ConstantDef(name: name, value: operandValue, isDefined: isDefined)
+
+proc `$`(c: ConstantDef) : string =
+  result = "ConstantDef(" & c.name & ", " & $c.typeOf & ", " & $c.value & ")"
+
+proc newFunctionDef(name: string, args, locals, index: int, isDefined: bool) : FunctionDef =
+  result = new FunctionDef
+  result.name = name
+  result.args = args
+  result.locals = locals
+  result.index = index
+  result.isDefined = isDefined
+
+proc `$`(f: FunctionDef) : string =
+  result = "FunctionDef(" & f.name & ", args:" & $f.args & ", locals:" & $f.locals & ", " & $f.index & ")"
+
+proc newLabelDef(name: string, index: int, isDefined: bool) : LabelDef =
+  result = new LabelDef
+  result.name = name
+  result.index = index
+  result.isDefined = isDefined
+
+proc `$`(l: LabelDef) : string =
+  result = "LabelDef(" & l.name & ", index:" & $l.index & ")"
+
+proc newNullaryInstruction(instruction: AsmTokenKind, typeOf: OperandType, line: int) : NullaryInstruction =
   result = new NullaryInstruction
   result.instruction = instruction
   result.typeOf = typeOf
   result.line = line
 
-proc newUnaryInstruction(instruction: AsmTokenKind, t: InstructionType, o: Operand, line: int) : UnaryInstruction =
+proc newUnaryInstruction(instruction: AsmTokenKind, operand: ConstantDef, line: int) : UnaryInstruction =
   result = new UnaryInstruction
   result.instruction = instruction
-  result.typeOf = t
-  result.operand = o
+  result.operand = operand
   result.line = line
 
-proc newBinaryInstruction(instruction: AsmTokenKind, t: InstructionType, first: Operand, second: Operand, line: int) : BinaryInstruction =
+proc newBinaryInstruction(instruction: AsmTokenKind, first: ConstantDef, second: ConstantDef, line: int) : BinaryInstruction =
   result = new BinaryInstruction
   result.instruction = instruction
-  result.typeOf = t
   result.firstOperand = first
   result.secondOperand = second
   result.line = line
 
-proc newLabel(label: string, s: Statement, line: int) : Label =
-  result = new Label
-  result.label = label
-  result.statement = s
-  result.line = line
-
 proc initParser(tokens: seq[AsmToken]) : Parser =
-  result.tokens = iterator() : AsmToken =
+  var tokenIter = iterator() : AsmToken =
     for token in tokens:
       yield token
-  result.current = result.tokens()
-  result.errors = newSeq[tuple[message: string, line: int]]()
+  
+  result = Parser(
+    index: 0,
+    tokens: tokenIter,
+    current: tokenIter(),
+    errors: newSeq[tuple[message: string, line: int]]()
+  )
 
 proc next(p: var Parser) : AsmToken =
   result = p.current
@@ -172,7 +219,61 @@ proc recoverTo(p: var Parser, kinds: varargs[AsmTokenKind]) =
   while not (p.current.kind in kinds):
     discard p.next()
 
+proc consumeIf(p: var Parser, kind: AsmTokenKind, errorMessage: string) : AsmToken =
+  if p.current.kind != kind:
+    raise newParseError(errorMessage, p.current.line)
+  else:
+    result = p.next()
+
+proc defineLabel(p: var Parser, name: string, address: int) : LabelDef =
+  for label in p.labelDefinitions:
+    if label.name == name:
+      raise newParseError("Lable already defined", 0)
+
+  result = newLabelDef(name, address, true)
+  p.labelDefinitions.add(result)
+
+proc getLabelReference(p: var Parser, name: string) : LabelDef =
+  for label in p.labelDefinitions:
+    if label.name == name:
+      result = label
+  
+  if result == nil:
+    result = newLabelDef(name, 0, false)
+    p.labelDefinitions.add(result)
+
 #endregion
+
+#region Symbol table
+
+proc hash(o: Operand) : Hash =
+  result = o.kind.hash
+  case o.kind:
+    of opFloat:
+      result = result !& o.floatingPoint.hash
+    of opIdentifier, opString:
+      result = result !& o.value.hash
+    of opSignedInteger:
+      result = result !& o.sinteger.hash
+    of opUnsignedInteger:
+      result = result !& o.uinteger.hash
+    of opVoid:
+      discard
+  result = !$result
+
+proc hash(f: FunctionDef) : Hash =
+  result = f.name.hash
+
+proc hash(l: LabelDef) : Hash =
+  result = l.name.hash
+
+proc hash(c: ConstantDef) : Hash =
+  result = c.value.hash
+
+proc contains(f: Function)
+
+#endregion
+
 
 proc signedIntegerOperand(p: var Parser) : Operand =
   if p.current.kind != asmInteger:
@@ -248,7 +349,7 @@ proc identifierOperand(p: var Parser) : Operand =
   let token = p.next
   result = Operand(kind: opIdentifier, value: token.value, line: token.line)
 
-proc operandType(p: var Parser) : InstructionType =
+proc operandType(p: var Parser) : OperandType =
   case p.current.kind:
     of asmI8Type:
       result = tyI8
@@ -276,7 +377,7 @@ proc operandType(p: var Parser) : InstructionType =
       raise newParseError("Not a valid type name", p.current.line)
   discard p.next()
 
-proc arithmeticType(p: var Parser) : InstructionType =
+proc arithmeticType(p: var Parser) : OperandType =
   let line = p.current.line
   let opType = p.operandType()
   case opType:
@@ -285,7 +386,7 @@ proc arithmeticType(p: var Parser) : InstructionType =
     else:
       raise newParseError("Expected integer or floating point type", line)
 
-proc stackOperand(p: var Parser) : tuple[typeOf: InstructionType, operand: Operand] =
+proc stackOperand(p: var Parser) : tuple[typeOf: OperandType, operand: Operand] =
   case p.current.kind:
     of SignedIntegerTokenTypes:
       let opType = p.operandType()
@@ -314,7 +415,7 @@ proc stackOperand(p: var Parser) : tuple[typeOf: InstructionType, operand: Opera
     else:
       raise newParseError("Expected a type or literal", p.current.line)
 
-proc definitionOperand(p: var Parser) : tuple[typeOf: InstructionType, operand: Operand] =
+proc definitionOperand(p: var Parser) : tuple[typeOf: OperandType, operand: Operand] =
   let operandType = p.operandType()
   
   case operandType:
@@ -341,6 +442,7 @@ proc instructionStatement(p: var Parser) : Statement =
           token.line
         )
       )
+      p.index += 1
 
     of asmAdd, asmSub, asmMul, asmDiv, asmMod:
       let token = p.next()
@@ -353,6 +455,7 @@ proc instructionStatement(p: var Parser) : Statement =
           token.line
         )
       )
+      p.index += NullInstructionSize
 
     of asmLoadConst, asmStoreLocal, asmLoadLocal:
       let token = p.next()
@@ -366,6 +469,7 @@ proc instructionStatement(p: var Parser) : Statement =
           token.line
         )
       )
+      p.index += UnaryInstructionSize
 
     of asmJump, asmJumpTrue, asmJumpFalse, asmCallFunc, asmCallInterface, asmNewStruct:
       let token = p.next()
@@ -379,6 +483,7 @@ proc instructionStatement(p: var Parser) : Statement =
           token.line
         )
       )
+      p.index += UnaryInstructionSize
 
     of asmLoadField, asmStoreField:
       let token = p.next()
@@ -394,78 +499,50 @@ proc instructionStatement(p: var Parser) : Statement =
           token.line
         )
       )
+      p.index += BinaryInstructionSize
     else:
       raise newParseError("Expected instruction", p.current.line)
 
-proc statement(p: var Parser) : Statement
+proc labelDefinition(p: var Parser) =
+  let name = p.consumeIf(asmIdentifier, "Label name should be an identifier")
+  discard p.consumeIf(asmColon, "Expected :")
 
-proc labelStatement(p: var Parser) : Statement =
-  if p.current.kind != asmIdentifier:
-    raise newParseError("Label name should be an identifier", p.current.line)
-
-  let label = p.next()
-  
-  if p.current.kind != asmColon:
-    raise newParseError("Expected :", p.current.line)
-  discard p.next()
-
-  result = Statement(
-    kind: stmtLabel,
-    label: newLabel(
-      p.current.value,
-      p.statement(),
-      label.line
-    )
-  )
+  let labelDef = p.defineLabel(name.value, p.index)
+  p.labelDefinitions.add(labelDef)
 
 proc statement(p: var Parser) : Statement =
-  case p.current.kind:
-    of asmIdentifier:
-      result = p.labelStatement()
-    else:
-      result = p.instructionStatement()
+  while p.current.kind == asmIdentifier:
+    p.labelDefinition()
+  result = p.instructionStatement()
 
 proc function(p: var Parser) : Function =
-  if p.current.kind != asmFunc:
-    raise newParseError("Expected function keyword", p.current.line)
-  discard p.next()
-
-  if p.current.kind != asmIdentifier:
-    raise newParseError("Expected function name", p.current.line)
-  let name = p.next()
-
-  if p.current.kind != asmColon:
-    raise newParseError("Expected :", p.current.line)
-  discard p.next()
+  let keyword = p.consumeIf(asmFunc, "Expected function keyword")
+  
+  let name = p.consumeIf(asmIdentifier, "Expected function name")
+  
+  discard p.consumeIf(asmColon, "Expected :")
 
   if p.current.kind != asmParam and p.current.value != "args":
     raise newParseError("Expected args parameter", p.current.line)
   discard p.next()
 
-  if p.current.kind != asmEqual:
-    raise newParseError("Expected =", p.current.line)
-  discard p.next()
+  discard p.consumeIf(asmEqual, "Expected =")
 
-  if p.current.kind != asmInteger:
-    raise newParseError("Expected integer value", p.current.line)
-  let numArgs = p.next()
+  let numArgs = p.consumeIf(asmInteger, "Expected integer value")
 
   if p.current.kind != asmParam and p.current.value != "locals":
     raise newParseError("Expected locals parameter", p.current.line)
   discard p.next()
 
-  if p.current.kind != asmEqual:
-    raise newParseError("Expected =", p.current.line)
-  discard p.next()
+  discard p.consumeIf(asmEqual, "Expected =")
 
-  if p.current.kind != asmInteger:
-    raise newParseError("Expected integer value", p.current.line)
-  let numLocals = p.next()
+  let numLocals = p.consumeIf(asmInteger, "Expected integer value")
 
-  result.name = name.value
-  result.args = numArgs.value.parseInt()
-  result.locals = numLocals.value.parseInt()
-  result.line = name.line
+  # Register definition
+  let funcDef = newFunctionDef(name.value, numArgs.value.parseInt(), numLocals.value.parseInt(), p.index, true)
+  p.functionDefinitions.add(funcDef)
+
+  result = Function(definition: funcDef, statements: newSeq[Statement](), line: keyword.line)
 
   while not (p.current.kind in {asmFunc, asmEndOfFile}):
     try:
@@ -474,23 +551,14 @@ proc function(p: var Parser) : Function =
       p.addError(e.message, e.line)
       p.recoverTo(asmFunc, asmEndOfFile)
 
-proc definition(p: var Parser) : Definition =
-  if p.current.kind != asmDefine:
-    raise newParseError("Expected define keyword", p.current.line)
-  discard p.next()
-
-  if p.current.kind != asmIdentifier:
-    raise newParseError("Definition expects to have an identifier", p.current.line)
-  let identifier = p.next()
-
+proc definition(p: var Parser) =
+  discard p.consumeIf(asmDefine, "Expected .define keyword")
+  let identifier = p.consumeIf(asmIdentifier, "Expected identifier after .define keyword")
   let op = p.definitionOperand()
 
-  result = Definition(
-    name: identifier.value,
-    typeOf: op.typeOf,
-    operand: op.operand,
-    line: identifier.line
-  )
+  let constDef = newConstantDef(identifier.value, op.typeOf, op.operand, true)
+  p.constantDefinitions.add(constDef)
+
 
 proc program(p: var Parser) : Program =
   while p.current.kind != asmEndOfFile:
@@ -499,7 +567,7 @@ proc program(p: var Parser) : Program =
         of asmFunc:
           result.functions.add(p.function())
         of asmDefine:
-          result.definitions.add(p.definition())
+          p.definition()
         else:
           raise newParseError("Expected function or constant", p.current.line)
     except ParseError as e:
@@ -513,71 +581,19 @@ proc parse*(tokens: seq[AsmToken]) : ParseResults =
   let program = parser.program()
   result.program = program
   result.errors = parser.errors
-
-#region Assembler
-
-type
-  FunctionSymbol = object
-    isDeclared*: bool
-    name*: string
-    args*: int
-    locals*: int
-    address*: BiggestUInt
-
-  ConstantSymbol = object
-    name*: string
-    value*: Operand
-  
-  LabelSymbol = object
-    name*: string
-    address*: BiggestUInt
-
-  Symbols = object
-    functions: seq[FunctionSymbol]
-    constants: seq[ConstantSymbol]
-    labels: seq[LabelSymbol]
+  echo "Constants ", $parser.constantDefinitions
+  echo "Functions ", $parser.functionDefinitions
+  echo "Labels ", $parser.labelDefinitions
 
 
-proc initSymbols() : Symbols =
-  Symbols(
-    functions: newSeq[FunctionSymbol](),
-    constants: newSeq[ConstantSymbol](),
-    labels: newSeq[LabelSymbol]()
-  )
-
-proc symbolVisit(s: var Symbols, d: Function) =
-  s.functions.add(FunctionSymbol(
-    isDeclared: true,
-    name: d.name,
-    args: d.args,
-    locals: d.locals,
-    )
-  )
-
-proc symbolVisit(s: var Symbols, d: Definition) =
-  # s.constants.add(ConstantSymbol(d.name, d.)
-  discard
-
-proc symbolVisit(p: Program) : Symbols =
-  result = initSymbols()
-  for definition in p.definitions:
-    symbolVisit(result, definition)
-  for function in p.functions:
-    symbolVisit(result, function)
-
-  #endregion
-  
 when isMainModule:
-  let example = """
+  let source = """
+  .define forty i32 40
   .func main: args=0, locals=0
-    ldconst i32 40
-    ldconst i32 2
-    add i32
+    start:
+    end:
   """
-  let tokens = lexString(example)
-  let tree = parse(tokens)
-  let symbols = symbolVisit(tree.program)
-  echo "tokens: ", tokens
-  echo "tree: ", tree.program
-  echo "errors: ", tree.errors
-  echo symbols
+  let tokens = lexString(source)
+  let parseResults = parse(tokens)
+  echo "Tokens ", tokens
+  echo "Errors ", parseResults.errors
